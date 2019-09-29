@@ -35,7 +35,7 @@ namespace BARExtractor
             {"UVVL",      "volume"},
         };
 
-        static string OUTPUT_DIR = "Out/";
+        static string outputDir;// = "Out/";
         static string RAW_SUBDIR = "Raw/";
         static string UNPACKED_SUBDIR = "Unpacked/";
 
@@ -43,7 +43,9 @@ namespace BARExtractor
 
         static void Main(string[] args)
         {
-            romBytes = File.ReadAllBytes("bar.z64");
+            string romPath = String.Join(" ", args).Replace("\"", "");
+            romBytes = File.ReadAllBytes(romPath);
+            outputDir = Path.GetFileNameWithoutExtension(romPath) + "/";
 
             int fileTablePtr = DetermineFileTableLocation(romBytes);
 
@@ -59,17 +61,17 @@ namespace BARExtractor
 
             VerifyNoFilesMissingFromFileTable(fileTablePtrToType, startOfFiles);
 
-            Directory.CreateDirectory(OUTPUT_DIR);
-            Directory.CreateDirectory(OUTPUT_DIR + RAW_SUBDIR);
-            Directory.CreateDirectory(OUTPUT_DIR + UNPACKED_SUBDIR);
+            Directory.CreateDirectory(outputDir);
+            Directory.CreateDirectory(outputDir + RAW_SUBDIR);
+            Directory.CreateDirectory(outputDir + UNPACKED_SUBDIR);
 
             //Save off bits before file table
-            File.WriteAllBytes(OUTPUT_DIR + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, fileTablePtr));
+            File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, fileTablePtr));
 
             //Save file table
             int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
             byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
-            File.WriteAllBytes($"{OUTPUT_DIR}[0x{fileTablePtr:x}] File Table.uvft", fTableBytes);
+            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x}] File Table.uvft", fTableBytes);
 
             Dictionary<string, int> fileTypeCount = new Dictionary<string, int>();
      
@@ -82,7 +84,7 @@ namespace BARExtractor
 
                 if (formPtr > lastFileEnd)
                 {
-                    File.WriteAllBytes($"{OUTPUT_DIR}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
+                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
                 }
 
                 string firstMagicWord;
@@ -103,14 +105,14 @@ namespace BARExtractor
                     magicWord += "/" + firstMagicWord;
                 }
                 string niceFileType = magicWordToFolderName[magicWord];
-                Directory.CreateDirectory(OUTPUT_DIR + RAW_SUBDIR + niceFileType + "/");
+                Directory.CreateDirectory(outputDir + RAW_SUBDIR + niceFileType + "/");
 
                 int sectionLength;
 
                 if (firstMagicWord == "<noheader>")
                 {
                     sectionLength = orderedTable[i + 1].Key - formPtr;
-                    File.WriteAllBytes($"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", 
+                    File.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", 
                         romBytes.GetSubArray(formPtr, sectionLength));
                 }
                 else
@@ -128,7 +130,7 @@ namespace BARExtractor
 
             if(lastFileEnd < romBytes.Length)
             {
-                File.WriteAllBytes($"{OUTPUT_DIR}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
+                File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
             }
 
             AsyncWriteHelper.WaitForFilesToFinishWriting();
@@ -281,11 +283,11 @@ namespace BARExtractor
             byte[] formBytes = romBytes.GetSubArray(formPtr + 8, formLength);
             if (niceFileType == "texture")
             {
-                FormUnpacker.UnpackTexture(formBytes, $"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/", $"{OUTPUT_DIR}{UNPACKED_SUBDIR}{niceFileType}/", $"[{formPtr}]");
+                FormUnpacker.UnpackTexture(formBytes, $"{outputDir}{RAW_SUBDIR}{niceFileType}/", $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/", $"[{formPtr}]");
             }
             else
             {
-                AsyncWriteHelper.WriteAllBytes($"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", formBytes);
+                AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", formBytes);
             }
 
             return formLength;
