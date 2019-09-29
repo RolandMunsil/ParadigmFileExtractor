@@ -38,23 +38,18 @@ namespace BARExtractor
                 {
                     throw new InvalidOperationException();
                 }
-                string fileLoc = $"{rawDir}{filename}.compressed_texture";
-                AsyncWriteHelper.WriteAllBytes(fileLoc, form);
-                string cmdText = $"/C mio0.exe -d -o {pos + 16} {fileLoc} {unpackedDir}{filename}.texture";
 
-                System.Diagnostics.Process process = new System.Diagnostics.Process();
-                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
-                startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                startInfo.FileName = "cmd.exe";
-                startInfo.Arguments = cmdText;
-                process.StartInfo = startInfo;
-                process.Start();
+                byte[] decompressedBytes = PeepsCompress.MIO0.decompress(pos + 16, form);
+
+                AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.compressed_texture", form);
+                AsyncWriteHelper.WriteAllBytes($"{unpackedDir}{filename}.texture", decompressedBytes);
+
             }
             else if (firstActualMagicWord == "COMM")
             {
                 byte[] commData = ReadDataInSubSection("COMM", form, pos, true);
 
-                AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.non_compressed_texture", commData);
+                AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.non_compressed_texture", form);
                 AsyncWriteHelper.WriteAllBytes($"{unpackedDir}{filename}.texture", commData);
             }
             else

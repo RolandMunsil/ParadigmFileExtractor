@@ -279,14 +279,14 @@ namespace BARExtractor
 
             int formLength = romBytes.ReadInt(formPtr + 4);
             byte[] formBytes = romBytes.GetSubArray(formPtr + 8, formLength);
-            //if (niceFileType == "texture")
-            //{
-            //    FormUnpacker.UnpackTexture(formBytes, $"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/", $"{OUTPUT_DIR}{UNPACKED_SUBDIR}{niceFileType}/", $"[{formPtr}]");
-            //}
-            //else
-            //{
+            if (niceFileType == "texture")
+            {
+                FormUnpacker.UnpackTexture(formBytes, $"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/", $"{OUTPUT_DIR}{UNPACKED_SUBDIR}{niceFileType}/", $"[{formPtr}]");
+            }
+            else
+            {
                 AsyncWriteHelper.WriteAllBytes($"{OUTPUT_DIR}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", formBytes);
-            //}
+            }
 
             return formLength;
         }

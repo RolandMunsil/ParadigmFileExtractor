@@ -3,31 +3,36 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Collections;
+using BARExtractor;
 
 namespace PeepsCompress
 {
-    class MIO0
+    static class MIO0
     {
-
-        public byte[] decompress(int offset, FileStream inputFile)
+        public static byte[] decompress(int offset, byte[] data)
         {
-            BigEndianBinaryReader br = new BigEndianBinaryReader(inputFile)
+            MemoryStream inputFile = new MemoryStream(data);
+
+            //BigEndianBinaryReader br = new BigEndianBinaryReader(inputFile);
+            //new MemoryStream().Read
 
             List<byte> newFile = new List<byte>();
 
-            string magicNumber = Encoding.ASCII.GetString(br.ReadBytes(4));
+            string magicNumber = data.ReadMagicWord(offset + 0);
 
             if (magicNumber == "MIO0")
             {
-                int decompressedLength = br.ReadInt32();
-                int compressedOffset = br.ReadInt32() + offset;
-                int uncompressedOffset = br.ReadInt32() + offset;
+                int decompressedLength = data.ReadInt(offset + 4);
+                int compressedOffset = data.ReadInt(offset + 8) + offset;
+                int uncompressedOffset = data.ReadInt(offset + 12) + offset;
                 int currentOffset;
+
+                inputFile.Seek(offset + 16, SeekOrigin.Begin);
 
                 while (newFile.Count < decompressedLength)
                 {
 
-                    byte bits = br.ReadByte(); //byte of layout bits
+                    byte bits = (byte)inputFile.ReadByte(); //byte of layout bits
                     BitArray arrayOfBits = new BitArray(new byte[1] { bits });
 
                     for (int i = 7; i > -1 && (newFile.Count < decompressedLength); i--) //iterate through layout bits
@@ -42,7 +47,7 @@ namespace PeepsCompress
 
                             inputFile.Seek(uncompressedOffset, SeekOrigin.Begin);
 
-                            newFile.Add(br.ReadByte());
+                            newFile.Add((byte)inputFile.ReadByte());
                             uncompressedOffset++;
 
                             inputFile.Seek(currentOffset, SeekOrigin.Begin);
@@ -58,8 +63,8 @@ namespace PeepsCompress
                             currentOffset = (int)inputFile.Position;
                             inputFile.Seek(compressedOffset, SeekOrigin.Begin);
 
-                            byte byte1 = br.ReadByte();
-                            byte byte2 = br.ReadByte();
+                            byte byte1 = (byte)inputFile.ReadByte();
+                            byte byte2 = (byte)inputFile.ReadByte();
                             compressedOffset += 2;
 
                             //Note: For Debugging, binary representations can be printed with:  Convert.ToString(numberVariable, 2);
