@@ -9,12 +9,9 @@ namespace PeepsCompress
 {
     static class MIO0
     {
-        public static byte[] decompress(int offset, byte[] data)
+        public static byte[] Decompress(int offset, byte[] data)
         {
             MemoryStream inputFile = new MemoryStream(data);
-
-            //BigEndianBinaryReader br = new BigEndianBinaryReader(inputFile);
-            //new MemoryStream().Read
 
             List<byte> newFile = new List<byte>();
 

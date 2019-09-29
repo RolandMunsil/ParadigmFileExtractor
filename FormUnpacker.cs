@@ -39,7 +39,7 @@ namespace BARExtractor
                     throw new InvalidOperationException();
                 }
 
-                byte[] decompressedBytes = PeepsCompress.MIO0.decompress(pos + 16, form);
+                byte[] decompressedBytes = PeepsCompress.MIO0.Decompress(pos + 16, form);
 
                 AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.compressed_texture", form);
                 AsyncWriteHelper.WriteAllBytes($"{unpackedDir}{filename}.texture", decompressedBytes);
