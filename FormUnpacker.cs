@@ -9,69 +9,92 @@ namespace BARExtractor
 {
     class FormUnpacker
     {
-        public static void UnpackTexture(byte[] form, string rawDir, string unpackedDir, string filename)
+        public static void UnpackFile(byte[] file, string unpackDir, string unpackFilename)
         {
-            Directory.CreateDirectory(rawDir);
-            Directory.CreateDirectory(unpackedDir);
+            List<(string, byte[])> sections = new List<(string, byte[])>();
 
+            int subSectionCtr = 1;
             int pos = 4;
-            while (form.ReadMagicWord(pos) == "PAD ")
+            while (pos < file.Length)
             {
-                int padLength = form.ReadInt(pos + 4);
-                pos += 8 + padLength;
+                string nextMagicWord = file.ReadMagicWord(pos);
+                byte[] containedData;
+                string filename;
+                int sectionLength;
+                switch (nextMagicWord)
+                {
+                    case "PAD ":
+                        pos += 8 + file.ReadInt(pos + 4);
+                        continue;
+                    case "GZIP":
+                        string compressedDataMagicWord;
+                        containedData = ExtractGzipSection(file, pos, out sectionLength, out compressedDataMagicWord);
+                        filename = $"{subSectionCtr:d2}.{compressedDataMagicWord}";
+                        break;
+                    case "COMM":
+                    case "CODE":
+                    case "MDBG":
+                    case "RELA":
+                    case "PNTS":
+                    case "LNKS":
+                    case "VOBJ":
+                    case "TEXT":
+                    case "PIID":
+                    case "PHDR":
+                    case "PDAT":
+                    case "STRG":
+                    case "FRMT":
+                    case ".CTL":
+                    case ".TBL":
+                    case "SEQS":
+                        containedData = ReadDataInSection(file, pos, out sectionLength);
+                        filename = $"{subSectionCtr:d2}.{nextMagicWord.ToLower().Replace(".", "")}";
+                        break;
+                    default:
+                        throw new Exception($"Unknown magic word \"{nextMagicWord}\" in file, or file parser is parsing incorrectly");
+                }
+                subSectionCtr++;
+                sections.Add((filename, containedData));
+                pos += sectionLength;
             }
-            string firstActualMagicWord = form.ReadMagicWord(pos);
-            if(firstActualMagicWord == "GZIP")
+
+            if(sections.Count == 1)
             {
-                byte[] gzipData = ReadDataInSubSection("GZIP", form, pos, true);
-
-                if(form.ReadMagicWord(pos + 8) != "COMM")
-                {
-                    throw new InvalidOperationException();
-                }
-                int decompressedLength = form.ReadInt(pos + 12);
-                if(form.ReadMagicWord(pos + 16) != "MIO0")
-                {
-                    throw new InvalidOperationException();
-                }
-                if(decompressedLength != form.ReadInt(pos + 20))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                byte[] decompressedBytes = PeepsCompress.MIO0.Decompress(pos + 16, form);
-
-                AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.compressed_texture", form);
-                AsyncWriteHelper.WriteAllBytes($"{unpackedDir}{filename}.texture", decompressedBytes);
-
-            }
-            else if (firstActualMagicWord == "COMM")
-            {
-                byte[] commData = ReadDataInSubSection("COMM", form, pos, true);
-
-                AsyncWriteHelper.WriteAllBytes($"{rawDir}{filename}.non_compressed_texture", form);
-                AsyncWriteHelper.WriteAllBytes($"{unpackedDir}{filename}.texture", commData);
+                AsyncWriteHelper.WriteAllBytes($"{unpackFilename}", sections[0].Item2);
             }
             else
             {
-                throw new InvalidOperationException(); 
+                Directory.CreateDirectory(unpackDir);
+                foreach ((string filename, byte[] data) in sections)
+                {
+                    AsyncWriteHelper.WriteAllBytes($"{unpackDir}{filename}", data);
+                }
             }
         }
 
-        public static byte[] ReadDataInSubSection(string expectedWord, byte[] form, int subSecPos, bool shouldBeLastSubSection = false)
+        private static byte[] ExtractGzipSection(byte[] form, int subSecPos, out int sectionlength, out string compressedDataMagicWord)
         {
-            if(form.ReadMagicWord(subSecPos) != expectedWord)
+            sectionlength = 8 + form.ReadInt(subSecPos + 4);
+
+            compressedDataMagicWord = form.ReadMagicWord(subSecPos + 8);
+            int decompressedLength = form.ReadInt(subSecPos + 12);
+            if (form.ReadMagicWord(subSecPos + 16) != "MIO0")
             {
                 throw new InvalidOperationException();
             }
-            int length = form.ReadInt(subSecPos + 4);
-
-            if(shouldBeLastSubSection && (subSecPos + 8 + length) != form.Length)
+            if (decompressedLength != form.ReadInt(subSecPos + 20))
             {
                 throw new InvalidOperationException();
             }
 
-            return form.GetSubArray(subSecPos + 8, length);
+            return PeepsCompress.MIO0.Decompress(subSecPos + 16, form);
+        }
+
+        public static byte[] ReadDataInSection(byte[] form, int subSecPos, out int sectionlength)
+        {
+            int dataLength = form.ReadInt(subSecPos + 4);
+            sectionlength = 8 + dataLength;
+            return form.GetSubArray(subSecPos + 8, dataLength);
         }
     }
 }

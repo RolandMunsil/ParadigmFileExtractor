@@ -12,6 +12,8 @@ namespace BARExtractor
     {
         // Note: files with a mismatch between file table type and type in header will have it
         // concatenated to <headertype>/<filetabletype>
+
+        // TODO: only special cases
         static Dictionary<string, string> magicWordToFolderName = new Dictionary<string, string>
         {
             {"UVAN",      "janim"},
@@ -71,7 +73,7 @@ namespace BARExtractor
             //Save file table
             int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
             byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
-            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x}] File Table.uvft", fTableBytes);
+            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.uvft", fTableBytes);
 
             Dictionary<string, int> fileTypeCount = new Dictionary<string, int>();
      
@@ -84,7 +86,7 @@ namespace BARExtractor
 
                 if (formPtr > lastFileEnd)
                 {
-                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
+                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
                 }
 
                 string firstMagicWord;
@@ -112,8 +114,18 @@ namespace BARExtractor
                 if (firstMagicWord == "<noheader>")
                 {
                     sectionLength = orderedTable[i + 1].Key - formPtr;
-                    File.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", 
-                        romBytes.GetSubArray(formPtr, sectionLength));
+
+                    byte[] headerlessFile = romBytes.GetSubArray(formPtr, sectionLength);
+                    string outputName = $"[0x{formPtr:x6}]";
+
+                    AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/{outputName}.{niceFileType}", headerlessFile);
+
+                    string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/";
+                    Directory.CreateDirectory(filetypeDir);
+                    AsyncWriteHelper.WriteAllBytes($"{filetypeDir}{outputName}.{niceFileType}", headerlessFile);
+
+                    //File.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[0x{formPtr:x6}].{niceFileType.ToLower()}", 
+                    //    romBytes.GetSubArray(formPtr, sectionLength));
                 }
                 else
                 {
@@ -130,7 +142,7 @@ namespace BARExtractor
 
             if(lastFileEnd < romBytes.Length)
             {
-                File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
+                File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
             }
 
             AsyncWriteHelper.WaitForFilesToFinishWriting();
@@ -281,14 +293,22 @@ namespace BARExtractor
 
             int formLength = romBytes.ReadInt(formPtr + 4);
             byte[] formBytes = romBytes.GetSubArray(formPtr + 8, formLength);
-            if (niceFileType == "texture")
+
+
+            string extraNameInfo = "";
+            if(niceFileType == "modu")
             {
-                FormUnpacker.UnpackTexture(formBytes, $"{outputDir}{RAW_SUBDIR}{niceFileType}/", $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/", $"[{formPtr}]");
+                int namePtr = 8 + Encoding.ASCII.GetString(formBytes).IndexOf("MDBG");
+                string name = Encoding.ASCII.GetString(formBytes, namePtr, 0x20).Replace("\0","");
+                extraNameInfo = " " + name;
             }
-            else
-            {
-                AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[{formPtr}].{niceFileType.ToLower()}", formBytes);
-            }
+            string outputName = $"[0x{formPtr:x6}]{extraNameInfo}";
+
+            AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/{outputName}.{niceFileType}", formBytes);
+
+            string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/";
+            Directory.CreateDirectory(filetypeDir);
+            FormUnpacker.UnpackFile(formBytes, $"{filetypeDir}{outputName}/", $"{filetypeDir}{outputName}.{niceFileType}");
 
             return formLength;
         }
