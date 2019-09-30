@@ -73,7 +73,7 @@ namespace BARExtractor
             //Save file table
             int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
             byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
-            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.uvft", fTableBytes);
+            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.bin", fTableBytes);
 
             Dictionary<string, int> fileTypeCount = new Dictionary<string, int>();
      
@@ -142,7 +142,33 @@ namespace BARExtractor
 
             if(lastFileEnd < romBytes.Length)
             {
-                File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
+                // Check if there's actually useful data here
+                // In most cases it seems like this is just 0x0 until the next address that's a multiple of 16, and then 0xFF from then on until the end of the ROM.
+                int expectedStartOfFFs = lastFileEnd + (0x10 - (lastFileEnd % 0x10));
+                int curPos = lastFileEnd;
+                bool potentiallyInterestingDataPresent = false;
+                for(; curPos < expectedStartOfFFs; curPos++)
+                {
+                    if(romBytes[curPos] != 0x00)
+                    {
+                        potentiallyInterestingDataPresent = true;
+                    }
+                }
+                if (!potentiallyInterestingDataPresent)
+                {
+                    for (; curPos < romBytes.Length; curPos++)
+                    {
+                        if (romBytes[curPos] != 0xFF)
+                        {
+                            potentiallyInterestingDataPresent = true;
+                        }
+                    }
+                }
+
+                if (potentiallyInterestingDataPresent)
+                {
+                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
+                }
             }
 
             AsyncWriteHelper.WaitForFilesToFinishWriting();
@@ -195,8 +221,8 @@ namespace BARExtractor
 
             int romPtr = (int)(0x1000 + (ramPtr - 0x80000400));
 
-            // Now double check that this is the first FORM object in the ROM
-            for(int pos = 0; pos < romBytes.Length; pos++)
+            // 1) Find first FORM magic word in ROM
+            for (int pos = 0; pos < romBytes.Length; pos++)
             {
                 if(romBytes.ReadMagicWord(pos) == "FORM")
                 {
@@ -243,7 +269,7 @@ namespace BARExtractor
                     int tableWord = fileTable.ReadInt(curFileTablePos + sectionPos);
                     if ((uint)tableWord == 0xFFFFFFFF)
                     {
-                        Console.WriteLine($"FFFFFF ptr! @ {curFileTablePos + sectionPos:x}");
+                        //Console.WriteLine($"FFFFFF ptr! @ {curFileTablePos + sectionPos:x}");
                         continue;
                     }
                     int filePtr = startOfFiles + tableWord;
