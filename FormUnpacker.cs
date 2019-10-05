@@ -47,6 +47,8 @@ namespace BARExtractor
                     case ".CTL":
                     case ".TBL":
                     case "SEQS":
+                    case "BITM":
+                    case "SCPT":
                         containedData = ReadDataInSection(file, pos, out sectionLength);
                         filename = $"{subSectionCtr:d2}.{nextMagicWord.ToLower().Replace(".", "")}";
                         break;
@@ -80,14 +82,19 @@ namespace BARExtractor
             int decompressedLength = form.ReadInt(subSecPos + 12);
             if (form.ReadMagicWord(subSecPos + 16) != "MIO0")
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("GZIP file is missing MIO0 in header.");
             }
             if (decompressedLength != form.ReadInt(subSecPos + 20))
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("Length mismatch in GZIP header.");
             }
 
-            return PeepsCompress.MIO0.Decompress(subSecPos + 16, form);
+            byte[] decompressed = PeepsCompress.MIO0.Decompress(subSecPos + 16, form);
+            if(decompressed.Length != decompressedLength)
+            {
+                throw new InvalidOperationException($"Expected length: {decompressedLength}. Actual length: {decompressed.Length}");
+            }
+            return decompressed;
         }
 
         public static byte[] ReadDataInSection(byte[] form, int subSecPos, out int sectionlength)

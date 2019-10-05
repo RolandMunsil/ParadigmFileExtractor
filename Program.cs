@@ -10,12 +10,39 @@ namespace BARExtractor
 {
     class Program
     {
+        static Dictionary<string, int> serialToFileTablePtr = new Dictionary<string, int>
+        {
+            {"NNSE", 0x237D0}, // Beetle Adventure Racing (US)
+            {"NNSP", 0x237D0}, // Beetle Adventure Racing (EU)
+            {"NB8J", 0x23270}, // Beetle Adventure Racing (JP)
+            {"NNSX", 0x233E0}, // HSV Adventure Racing (AU)
+
+            {"NICE", 0x5AF680}, // Indy Racing 2000 (US)
+
+            {"NDUE", 0x6EE260}, // Duck Dodgers Starring Daffy Duck (US) 
+            {"NDUP", 0x6EE5E0}, // Daffy Duck Starring as Duck Dodgers (EU)
+
+            {"NFWE", 0x334F0}, // F-1 World Grand Prix (US)
+            {"NFWP", 0x335C0}, // F-1 World Grand Prix (EU)
+            {"NFWF", 0x335A0}, // F-1 World Grand Prix (FR)
+            {"NFWD", 0x33B70}, // F-1 World Grand Prix (DE)
+            {"NFWJ", 0x33720}, // F-1 World Grand Prix (JP)
+
+            {"NF2P", 0x2F040}, // F-1 World Grand Prix II (EU)
+
+            //TODO:
+            // Pilotwings, AeroFighters, Sonc Wings
+            // F-1 World Grand Prix beta is supported by the manual search 
+        };
+
         // Note: files with a mismatch between file table type and type in header will have it
         // concatenated to <headertype>/<filetabletype>
-
-        // TODO: only special cases
         static Dictionary<string, string> magicWordToFolderName = new Dictionary<string, string>
         {
+            {"CNMA",      "cinema"},
+            {"DEMO",      "demo"},
+            {"FTKL",      "itrack"},
+            {"STRY",      "f1story"},
             {"UVAN",      "janim"},
             {"UVBT",      "blit"},
             {"UVCT",      "contour"},
@@ -27,17 +54,18 @@ namespace BARExtractor
             {"UVMO/MODU", "modu"}, // couldn't find any loader code
             {"UVMS",      "ms"}, // couldn't find any loader code
             {"UVPX",      "pfx"},
-            {"UVRW/VMSK", "ufile"},
-            {"UVRW/<noheader>", "headerless_ufile"},
             {"UVSX",      "sx"}, // couldn't find any loader code
             {"UVTR",      "terra"},
+            {"UVTP",      "texturexref"},
             {"UVTS/UVSQ", "tseq"},
             {"UVTT",      "track"},
             {"UVTX",      "texture"},
             {"UVVL",      "volume"},
         };
 
-        static string outputDir;// = "Out/";
+        static string RAW_FILETYPE_DIR = "raw";
+
+        static string outputDir;
         static string RAW_SUBDIR = "Raw/";
         static string UNPACKED_SUBDIR = "Unpacked/";
 
@@ -49,32 +77,63 @@ namespace BARExtractor
             romBytes = File.ReadAllBytes(romPath);
             outputDir = Path.GetFileNameWithoutExtension(romPath) + "/";
 
-            int fileTablePtr = DetermineFileTableLocation(romBytes);
-
-            // Check that file table is in the right place
-            if (romBytes.ReadMagicWord(fileTablePtr) != "FORM" || romBytes.ReadMagicWord(fileTablePtr + 8) != "UVFT")
+            Console.WriteLine("Locating file table...");
+            string serial = romBytes.ReadMagicWord(0x3B);
+            int fileTablePtr;
+            bool hadToSearch = false;
+            if(serialToFileTablePtr.ContainsKey(serial))
             {
-                throw new InvalidOperationException("File table not in the right place! Have you loaded the right ROM?");
+                fileTablePtr = serialToFileTablePtr[serial];
+                Console.WriteLine($"Matched game serial to file table location! ({serial} -> 0x{fileTablePtr:x})");
+
+                // Check that this pointer is correct
+                if (romBytes.ReadMagicWord(fileTablePtr) != "FORM" || romBytes.ReadMagicWord(fileTablePtr + 8) != "UVFT")
+                {
+                    Console.WriteLine("Stored file table location was incorrect - initiating a search for file table header...");
+                    fileTablePtr = SearchForFileTable(romBytes);
+                    hadToSearch = true;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Game serial not in database - initiating a search for file table header...");
+                fileTablePtr = SearchForFileTable(romBytes);
+                hadToSearch = true;
             }
 
+            if(fileTablePtr == -1)
+            {
+                Console.WriteLine("ERROR: Could not locate file table.");
+                throw new InvalidOperationException();
+            }
+            else if (hadToSearch)
+            {
+                Console.WriteLine("File table found by searching!");
+            }
+
+            Console.WriteLine("Parsing file table...");
             Dictionary<int, string> fileTablePtrToType = ParseFileTable(fileTablePtr);
             List<KeyValuePair<int, string>> orderedTable = fileTablePtrToType.OrderBy(kv => kv.Key).ToList();
             int startOfFiles = orderedTable[0].Key;
 
             VerifyNoFilesMissingFromFileTable(fileTablePtrToType, startOfFiles);
 
+            
             Directory.CreateDirectory(outputDir);
             Directory.CreateDirectory(outputDir + RAW_SUBDIR);
             Directory.CreateDirectory(outputDir + UNPACKED_SUBDIR);
 
             //Save off bits before file table
             File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, fileTablePtr));
+            Console.WriteLine("Section of ROM that's before file table saved to file.");
 
             //Save file table
             int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
             byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
             File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.bin", fTableBytes);
+            Console.WriteLine("File table saved to file.");
 
+            Console.WriteLine("Extracting files...");
             Dictionary<string, int> fileTypeCount = new Dictionary<string, int>();
      
             int lastFileEnd = startOfFiles;
@@ -82,53 +141,48 @@ namespace BARExtractor
             {
                 KeyValuePair<int, string> kvPair = orderedTable[i];
                 int formPtr = kvPair.Key;
-                string formFTType = kvPair.Value;
+                string magicWordInFileTable = kvPair.Value;
 
                 if (formPtr > lastFileEnd)
                 {
                     File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
                 }
 
-                string firstMagicWord;
-                if (romBytes.ReadMagicWord(formPtr) != "FORM")
-                {
-                    firstMagicWord = "<noheader>";
-                }
-                else
-                {
-                    firstMagicWord = romBytes.ReadMagicWord(formPtr + 8);
-                }
-
-                string magicWord = formFTType;
-
-                //Just in case there are games with are inconsistencies in the magic numbers
-                if (firstMagicWord != formFTType)
-                {
-                    magicWord += "/" + firstMagicWord;
-                }
-                string niceFileType = magicWordToFolderName[magicWord];
-                Directory.CreateDirectory(outputDir + RAW_SUBDIR + niceFileType + "/");
-
                 int sectionLength;
+                string niceFileType;
 
-                if (firstMagicWord == "<noheader>")
+                if (magicWordInFileTable == "UVRW")
                 {
-                    sectionLength = orderedTable[i + 1].Key - formPtr;
+                    niceFileType = "raw";
 
-                    byte[] headerlessFile = romBytes.GetSubArray(formPtr, sectionLength);
-                    string outputName = $"[0x{formPtr:x6}]";
+                    // This is a raw file, it needs special handling.
+                    if (romBytes.ReadMagicWord(formPtr) != "FORM")
+                    {
+                        // File has no header
+                        sectionLength = orderedTable[i + 1].Key - formPtr;
+                        SaveHeaderlessFile(formPtr, sectionLength);
+                    }
+                    else
+                    {
+                        // File has a header
+                        string fileType = romBytes.ReadMagicWord(formPtr + 8).ToLower();
+                        sectionLength = 8 + SaveFormToFile(formPtr, fileType, RAW_FILETYPE_DIR);
+                    }
 
-                    AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/{outputName}.{niceFileType}", headerlessFile);
-
-                    string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/";
-                    Directory.CreateDirectory(filetypeDir);
-                    AsyncWriteHelper.WriteAllBytes($"{filetypeDir}{outputName}.{niceFileType}", headerlessFile);
-
-                    //File.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/[0x{formPtr:x6}].{niceFileType.ToLower()}", 
-                    //    romBytes.GetSubArray(formPtr, sectionLength));
                 }
                 else
                 {
+                    string magicWordInFileHeader = romBytes.ReadMagicWord(formPtr + 8);
+
+                    string magicWord = magicWordInFileTable;
+                    //Just in case there are games with are inconsistencies in the magic numbers
+                    if (magicWordInFileHeader != magicWordInFileTable)
+                    {
+                        magicWord += "/" + magicWordInFileHeader;
+                    }
+
+                    niceFileType = magicWordToFolderName[magicWord];
+
                     sectionLength = 8 + SaveFormToFile(formPtr, niceFileType);
                 }
 
@@ -138,9 +192,14 @@ namespace BARExtractor
                     fileTypeCount[niceFileType]++;
 
                 lastFileEnd = formPtr + sectionLength;
-            }
 
-            if(lastFileEnd < romBytes.Length)
+                if (i % 100 == 99)
+                {
+                    Console.WriteLine($"{i+1}/{orderedTable.Count} files extracted...");
+                }
+            }
+            
+            if (lastFileEnd < romBytes.Length)
             {
                 // Check if there's actually useful data here
                 // In most cases it seems like this is just 0x0 until the next address that's a multiple of 16, and then 0xFF from then on until the end of the ROM.
@@ -172,6 +231,8 @@ namespace BARExtractor
             }
 
             AsyncWriteHelper.WaitForFilesToFinishWriting();
+            Console.WriteLine("All files extracted!");
+            Console.WriteLine();
 
             foreach (KeyValuePair<string, int> kvPair in fileTypeCount.OrderBy(kv => kv.Key))
             {
@@ -180,65 +241,18 @@ namespace BARExtractor
             Console.ReadLine();            
         }
 
-        private static int DetermineFileTableLocation(byte[] romBytes)
+        private static int SearchForFileTable(byte[] romBytes)
         {
-            // Check two ways:
-            // 1) Interpretation of first 4 instructions
-            uint[] instrs =
-            {
-                (uint)romBytes.ReadInt(0x1000),
-                (uint)romBytes.ReadInt(0x1004),
-                (uint)romBytes.ReadInt(0x1008),
-                (uint)romBytes.ReadInt(0x100C)
-            };
-            
-            uint ramPtr = 0x0;
-            bool upperFound = false;
-            bool lowerFound = false;
-            foreach(uint instr in instrs)
-            {
-                // lui t0,<data> always starts with 0x3c08, addiu t0,t0,<data> always starts with 0x2508
-                if ((instr >> 16) == 0x3c08)
-                {
-                    if (upperFound)
-                        throw new InvalidOperationException("Duplicate lui t0 instructions");
-                    ramPtr |= instr << 16;
-                    upperFound = true;
-                }
-                if ((instr >> 16) == 0x2508)
-                {
-                    if (lowerFound)
-                        throw new InvalidOperationException("Duplicate addiu t0,t0 instructions");
-                    ramPtr |= instr & 0x0000FFFF;
-                    lowerFound = true;
-                }
-            }
-            if(!lowerFound || !upperFound)
-            {
-                // TODO: should probably just print a warning
-                throw new InvalidOperationException("Unable to locate file table based on instructions!");
-            }
-
-            int romPtr = (int)(0x1000 + (ramPtr - 0x80000400));
-
-            // 1) Find first FORM magic word in ROM
+            //Find first FORM + UVFT magic word in ROM
             for (int pos = 0; pos < romBytes.Length; pos++)
             {
-                if(romBytes.ReadMagicWord(pos) == "FORM")
+                if(romBytes.ReadMagicWord(pos) == "FORM" && romBytes.ReadMagicWord(pos+8) == "UVFT")
                 {
-                    if(pos == romPtr)
-                    {
-                        // Methods match, return
-                        return (int)romPtr;
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Mismatch between file table ptr and location of first FORM file");
-                    }
+                    return pos;
                 }
             }
 
-            throw new InvalidOperationException("Unable to find file table via search through ROM");
+            return -1;
         }
 
         private static Dictionary<int, string> ParseFileTable(int FILE_TABLE_LOCATION)
@@ -296,8 +310,7 @@ namespace BARExtractor
                 {                   
                     if (!fileTablePtrToType.ContainsKey(curFilePos))
                     {
-                        //TODO: don't throw exception, instead handle this.
-                        throw new Exception("Found file that's not present in file table");
+                        throw new Exception($"Found file that's not present in file table (@ 0x{curFilePos:x}). The file table has probably been parsed incorrectly.");
                     }
 
                     int formLength = romBytes.ReadInt(curFilePos + 4);
@@ -310,7 +323,20 @@ namespace BARExtractor
             }
         }
 
-        public static int SaveFormToFile(int formPtr, string niceFileType)
+        private static void SaveHeaderlessFile(int formPtr, int sectionLength)
+        {
+            byte[] headerlessFile = romBytes.GetSubArray(formPtr, sectionLength);
+            string outputName = $"[0x{formPtr:x6}]";
+
+            Directory.CreateDirectory($"{outputDir}{RAW_SUBDIR}{RAW_FILETYPE_DIR}/");
+            AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{RAW_FILETYPE_DIR}/{outputName}.headerless_file", headerlessFile);
+
+            string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{RAW_FILETYPE_DIR}/";
+            Directory.CreateDirectory(filetypeDir);
+            AsyncWriteHelper.WriteAllBytes($"{filetypeDir}{outputName}.headerless_file", headerlessFile);
+        }
+
+        public static int SaveFormToFile(int formPtr, string niceFileType, string override_outputTypeDir = null)
         {
             if(romBytes.ReadMagicWord(formPtr) != "FORM")
             {
@@ -329,10 +355,12 @@ namespace BARExtractor
                 extraNameInfo = " " + name;
             }
             string outputName = $"[0x{formPtr:x6}]{extraNameInfo}";
+            string outputTypeDir = override_outputTypeDir ?? niceFileType;
 
-            AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{niceFileType}/{outputName}.{niceFileType}", formBytes);
+            Directory.CreateDirectory($"{outputDir}{RAW_SUBDIR}{outputTypeDir}/");
+            AsyncWriteHelper.WriteAllBytes($"{outputDir}{RAW_SUBDIR}{outputTypeDir}/{outputName}.{niceFileType}", formBytes);
 
-            string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{niceFileType}/";
+            string filetypeDir = $"{outputDir}{UNPACKED_SUBDIR}{outputTypeDir}/";
             Directory.CreateDirectory(filetypeDir);
             FormUnpacker.UnpackFile(formBytes, $"{filetypeDir}{outputName}/", $"{filetypeDir}{outputName}.{niceFileType}");
 
