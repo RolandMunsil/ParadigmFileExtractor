@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("BARExtractor")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("ParadigmFileExtractor")]
+[assembly: AssemblyDescription("File extractor for N64 games released by Paradigm Entertainment")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("BARExtractor")]
+[assembly: AssemblyProduct("ParadigmFileExtractor")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

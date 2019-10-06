@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BARExtractor
+namespace ParadigmFileExtractor
 {
     static class ByteArrayHelpers
     {
