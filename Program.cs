@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 using System.Diagnostics;
 
@@ -10,6 +9,7 @@ namespace BARExtractor
 {
     class Program
     {
+        //TODO: should i just get rid of this? search should be able to find it correctly every time.
         static Dictionary<string, int> serialToFileTablePtr = new Dictionary<string, int>
         {
             {"NNSE", 0x237D0}, // Beetle Adventure Racing (US)
@@ -30,34 +30,59 @@ namespace BARExtractor
 
             {"NF2P", 0x2F040}, // F-1 World Grand Prix II (EU)
 
-            //TODO:
-            // Pilotwings, AeroFighters, Sonc Wings
-            // F-1 World Grand Prix beta is supported by the manual search 
+            {"NPWE", 0xDE720}, // Pilotwings 64 (US)
+            {"NPWP", 0xE02A0}, // Pilotwings 64 (EU) 
+            {"NPWJ", 0xDEC30}, // Pilotwings 64 (JP)
+
+            {"NERE", 0x118690 }, // AeroFighters Assault (US)
+            {"NSAP", 0x125460 }, // AeroFighters Assault (EU)
+
+            {"NSAJ", 0x117D50 } // Sonic Wings Assault (JP)
         };
 
         // Note: files with a mismatch between file table type and type in header will have it
         // concatenated to <headertype>/<filetabletype>
+
+        //TODO: maybe setup auto-filename generation for the ones without a special name
         static Dictionary<string, string> magicWordToFolderName = new Dictionary<string, string>
         {
+            {"    ",      "BLANK_FILETYPE" }, // Weird filetype in AeroFighters Assault
+            {"3VUE",      "3vue"}, // couldn't find any loader code
+            {"ADAT",      "adat"}, // couldn't find any loader code
             {"CNMA",      "cinema"},
-            {"DEMO",      "demo"},
+            {"DEMO",      "demo"}, // couldn't find any loader code
             {"FTKL",      "itrack"},
+            {"LART",      "lart"}, // couldn't find any loader code
+            {"PDAT",      "pdat"}, // couldn't find any loader code
+            {"SDOC",      "sdoc"}, // couldn't find any loader code
+            {"SHAN",      "shan"}, // couldn't find any loader code
+            {"SLAN",      "slan"}, // couldn't find any loader code
+            {"SPTH",      "spth"}, // couldn't find any loader code
+            {"SRED",      "sred"}, // couldn't find any loader code
+            {"SSHT",      "ssht"}, // couldn't find any loader code
             {"STRY",      "f1story"},
+            {"Trai",      "Trai"}, // Weird filetype in AeroFighters Assault
+            {"UPWL",      "upwl"}, // couldn't find any loader code
+            {"UPWT",      "upwt"}, // couldn't find any loader code
             {"UVAN",      "janim"},
             {"UVBT",      "blit"},
             {"UVCT",      "contour"},
             {"UVDS",      "dset"},
             {"UVEN",      "env"},
             {"UVFT",      "font"},
+            {"UVLT",      "lt"}, // couldn't find any loader code
+            {"UVLV",      "lv"}, // couldn't find any loader code
             {"UVMB",      "mb"}, // couldn't find any loader code
             {"UVMD",      "uvmodel"},
             {"UVMO/MODU", "modu"}, // couldn't find any loader code
             {"UVMS",      "ms"}, // couldn't find any loader code
             {"UVPX",      "pfx"},
             {"UVSX",      "sx"}, // couldn't find any loader code
+            {"UVSY",      "sy"}, // couldn't find any loader code
             {"UVTR",      "terra"},
             {"UVTP",      "texturexref"},
             {"UVTS/UVSQ", "tseq"},
+            {"UVSQ",      "tseq"}, // couldn't find any loader code but it looks like it's the same as UVTS/UVSQ
             {"UVTT",      "track"},
             {"UVTX",      "texture"},
             {"UVVL",      "volume"},
@@ -70,6 +95,9 @@ namespace BARExtractor
         static string UNPACKED_SUBDIR = "Unpacked/";
 
         static byte[] romBytes;
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        static extern uint GetConsoleProcessList(uint[] ProcessList, uint ProcessCount);
 
         static void Main(string[] args)
         {
@@ -87,7 +115,7 @@ namespace BARExtractor
                 Console.WriteLine($"Matched game serial to file table location! ({serial} -> 0x{fileTablePtr:x})");
 
                 // Check that this pointer is correct
-                if (romBytes.ReadMagicWord(fileTablePtr) != "FORM" || romBytes.ReadMagicWord(fileTablePtr + 8) != "UVFT")
+                if (romBytes.ReadMagicWord(fileTablePtr) != "FORM" || (romBytes.ReadMagicWord(fileTablePtr + 8) != "UVFT" && romBytes.ReadMagicWord(fileTablePtr + 8) != "UVRM"))
                 {
                     Console.WriteLine("Stored file table location was incorrect - initiating a search for file table header...");
                     fileTablePtr = SearchForFileTable(romBytes);
@@ -112,12 +140,12 @@ namespace BARExtractor
             }
 
             Console.WriteLine("Parsing file table...");
-            Dictionary<int, string> fileTablePtrToType = ParseFileTable(fileTablePtr);
+            bool isCompressedFileTable;
+            Dictionary<int, string> fileTablePtrToType = ParseFileTable(fileTablePtr, out isCompressedFileTable);
             List<KeyValuePair<int, string>> orderedTable = fileTablePtrToType.OrderBy(kv => kv.Key).ToList();
             int startOfFiles = orderedTable[0].Key;
 
-            VerifyNoFilesMissingFromFileTable(fileTablePtrToType, startOfFiles);
-
+            VerifyNoFilesMissingFromFileTable(orderedTable);
             
             Directory.CreateDirectory(outputDir);
             Directory.CreateDirectory(outputDir + RAW_SUBDIR);
@@ -131,21 +159,27 @@ namespace BARExtractor
             int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
             byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
             File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.bin", fTableBytes);
+            if(isCompressedFileTable)
+            {
+                File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table (decompressed).bin", FormUnpacker.DecompressUVRMFileTable(fTableBytes));
+            }
             Console.WriteLine("File table saved to file.");
 
             Console.WriteLine("Extracting files...");
             Dictionary<string, int> fileTypeCount = new Dictionary<string, int>();
-     
-            int lastFileEnd = startOfFiles;
+
+            Stopwatch consoleOutputStopwatch = new Stopwatch();
+            consoleOutputStopwatch.Start();
+            int prevFileEnd = startOfFiles;
             for (int i = 0; i < orderedTable.Count; i++)
             {
                 KeyValuePair<int, string> kvPair = orderedTable[i];
                 int formPtr = kvPair.Key;
                 string magicWordInFileTable = kvPair.Value;
 
-                if (formPtr > lastFileEnd)
+                if (formPtr > prevFileEnd)
                 {
-                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, formPtr - lastFileEnd));
+                    File.WriteAllBytes($"{outputDir}[0x{prevFileEnd:x6}].bin", romBytes.GetSubArray(prevFileEnd, formPtr - prevFileEnd));
                 }
 
                 int sectionLength;
@@ -191,26 +225,28 @@ namespace BARExtractor
                 else
                     fileTypeCount[niceFileType]++;
 
-                lastFileEnd = formPtr + sectionLength;
+                prevFileEnd = formPtr + sectionLength;
 
-                if (i % 100 == 99)
+                if ((i % 100 == 99) || consoleOutputStopwatch.ElapsedMilliseconds > 2000)
                 {
                     Console.WriteLine($"{i+1}/{orderedTable.Count} files extracted...");
+                    consoleOutputStopwatch.Restart();
                 }
             }
             
-            if (lastFileEnd < romBytes.Length)
+            if (prevFileEnd < romBytes.Length)
             {
                 // Check if there's actually useful data here
                 // In most cases it seems like this is just 0x0 until the next address that's a multiple of 16, and then 0xFF from then on until the end of the ROM.
-                int expectedStartOfFFs = lastFileEnd + (0x10 - (lastFileEnd % 0x10));
-                int curPos = lastFileEnd;
+                int expectedStartOfFFs = prevFileEnd + (0x10 - (prevFileEnd % 0x10));
+                int curPos = prevFileEnd;
                 bool potentiallyInterestingDataPresent = false;
                 for(; curPos < expectedStartOfFFs; curPos++)
                 {
                     if(romBytes[curPos] != 0x00)
                     {
                         potentiallyInterestingDataPresent = true;
+                        break;
                     }
                 }
                 if (!potentiallyInterestingDataPresent)
@@ -220,13 +256,14 @@ namespace BARExtractor
                         if (romBytes[curPos] != 0xFF)
                         {
                             potentiallyInterestingDataPresent = true;
+                            break;
                         }
                     }
                 }
 
                 if (potentiallyInterestingDataPresent)
                 {
-                    File.WriteAllBytes($"{outputDir}[0x{lastFileEnd:x6}].bin", romBytes.GetSubArray(lastFileEnd, romBytes.Length - lastFileEnd));
+                    File.WriteAllBytes($"{outputDir}[0x{prevFileEnd:x6}] Data after all files.bin", romBytes.GetSubArray(prevFileEnd, romBytes.Length - prevFileEnd));
                 }
             }
 
@@ -238,7 +275,15 @@ namespace BARExtractor
             {
                 Console.WriteLine($"{kvPair.Key}: {kvPair.Value} files");
             }
-            Console.ReadLine();            
+
+            // If we're the only process attached to the console, (e.g. if the user drags+drops a file onto the program)
+            // then the console will close when the program exits. I'd rather not have this happen since most games will
+            // extract far too quickly for the user to read any of the output.
+            uint processCount = GetConsoleProcessList(new uint[64], 64);
+            if(processCount == 1)
+            {
+                Console.ReadKey();
+            }
         }
 
         private static int SearchForFileTable(byte[] romBytes)
@@ -246,7 +291,7 @@ namespace BARExtractor
             //Find first FORM + UVFT magic word in ROM
             for (int pos = 0; pos < romBytes.Length; pos++)
             {
-                if(romBytes.ReadMagicWord(pos) == "FORM" && romBytes.ReadMagicWord(pos+8) == "UVFT")
+                if(romBytes.ReadMagicWord(pos) == "FORM" && (romBytes.ReadMagicWord(pos+8) == "UVFT" || romBytes.ReadMagicWord(pos + 8) == "UVRM"))
                 {
                     return pos;
                 }
@@ -255,7 +300,7 @@ namespace BARExtractor
             return -1;
         }
 
-        private static Dictionary<int, string> ParseFileTable(int FILE_TABLE_LOCATION)
+        private static Dictionary<int, string> ParseFileTable(int FILE_TABLE_LOCATION, out bool isCompressedFileTable)
         {
             Dictionary<int, string> fileTablePtrToType = new Dictionary<int, string>();
 
@@ -269,56 +314,90 @@ namespace BARExtractor
 
             byte[] fileTable = romBytes.GetSubArray(FILE_TABLE_LOCATION + 8, fileTableLength);
 
-            // Read the file table
-            int curFileTablePos = 4;
-            while (curFileTablePos < fileTableLength)
+            if(fileTable.ReadMagicWord(0) == "UVFT")
             {
-                // Read the magic word and length
-                string fileType = fileTable.ReadMagicWord(curFileTablePos);
-                int sectionLength = fileTable.ReadInt(curFileTablePos + 4);
-                curFileTablePos += 8;
-                // Read the section
-                for (int sectionPos = 0; sectionPos < sectionLength; sectionPos += 4)
+                isCompressedFileTable = false;
+
+                // Read the file table
+                int curFileTablePos = 4;
+                while (curFileTablePos < fileTableLength)
                 {
-                    int tableWord = fileTable.ReadInt(curFileTablePos + sectionPos);
-                    if ((uint)tableWord == 0xFFFFFFFF)
+                    // Read the magic word and length
+                    string fileType = fileTable.ReadMagicWord(curFileTablePos);
+                    int sectionLength = fileTable.ReadInt(curFileTablePos + 4);
+                    curFileTablePos += 8;
+                    // Read the section
+                    for (int sectionPos = 0; sectionPos < sectionLength; sectionPos += 4)
                     {
-                        //Console.WriteLine($"FFFFFF ptr! @ {curFileTablePos + sectionPos:x}");
-                        continue;
+                        int tableWord = fileTable.ReadInt(curFileTablePos + sectionPos);
+                        if ((uint)tableWord == 0xFFFFFFFF)
+                        {
+                            //Console.WriteLine($"FFFFFF ptr! @ {curFileTablePos + sectionPos:x}");
+                            continue;
+                        }
+                        int filePtr = startOfFiles + tableWord;
+                        if (fileTablePtrToType.ContainsKey(filePtr))
+                        {
+                            throw new Exception("Duplicate references in file table!");
+                        }
+
+                        // Console.WriteLine($"Ptr: {tableWord:x} | Type: {fileType}");
+                        fileTablePtrToType.Add(filePtr, fileType);
                     }
-                    int filePtr = startOfFiles + tableWord;
-                    if (fileTablePtrToType.ContainsKey(filePtr))
+                    curFileTablePos += sectionLength;
+                }
+            }
+            else if(fileTable.ReadMagicWord(0) == "UVRM")
+            {
+                isCompressedFileTable = true;
+
+                byte[] decompressedFileTable = FormUnpacker.DecompressUVRMFileTable(fileTable);
+                if(decompressedFileTable.Length % 8 != 0)
+                {
+                    throw new InvalidOperationException("File table is invalid length (not a multiple of 8)!");
+                }
+                int curFilePos = startOfFiles;
+                for (int i = 0; i < decompressedFileTable.Length; i += 8)
+                {
+                    string magicWord = decompressedFileTable.ReadMagicWord(i);
+                    int formLength = decompressedFileTable.ReadInt(i + 4);
+
+                    if((romBytes.ReadInt(curFilePos + 4) + 8) != formLength)
                     {
-                        throw new Exception("Duplicate references in file table!");
+                        throw new InvalidDataException("Error parsing file table - length in file table does not match length in file header!");
                     }
 
-                    // Console.WriteLine($"Ptr: {tableWord:x} | Type: {fileType}");
-                    fileTablePtrToType.Add(filePtr, fileType);
+                    fileTablePtrToType.Add(curFilePos, magicWord);
+
+                    curFilePos += formLength;
                 }
-                curFileTablePos += sectionLength;
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to parse file table due to unrecognized magic word in header!");
             }
 
             return fileTablePtrToType;
         }
 
-        private static void VerifyNoFilesMissingFromFileTable(Dictionary<int, string> fileTablePtrToType, int startOfFiles)
+        private static void VerifyNoFilesMissingFromFileTable(List<KeyValuePair<int, string>> orderedFileTable)
         {
-            int curFilePos = startOfFiles;
-            while (curFilePos < romBytes.Length - 4)
+            for(int i = 0; i < orderedFileTable.Count - 1; i++)
             {
-                if (romBytes.ReadMagicWord(curFilePos) == "FORM")
-                {                   
-                    if (!fileTablePtrToType.ContainsKey(curFilePos))
-                    {
-                        throw new Exception($"Found file that's not present in file table (@ 0x{curFilePos:x}). The file table has probably been parsed incorrectly.");
-                    }
-
-                    int formLength = romBytes.ReadInt(curFilePos + 4);
-                    curFilePos += formLength + 8;
-                }
-                else
+                int filePtr = orderedFileTable[i].Key;
+                if (romBytes.ReadMagicWord(filePtr) != "FORM")
                 {
-                    curFilePos++;
+                    if(orderedFileTable[i].Value != "UVRW")
+                    {
+                        throw new InvalidOperationException("Found headerless file in file table that wasn't a UVRW file!");
+                    }
+                    // Skip, there's no way of determining the file size (and we'll just output everything anyway)
+                    continue;
+                }
+                int fileLength = romBytes.ReadInt(filePtr + 4);
+                if(filePtr + 8 + fileLength != orderedFileTable[i+1].Key)
+                {
+                    throw new Exception();
                 }
             }
         }
