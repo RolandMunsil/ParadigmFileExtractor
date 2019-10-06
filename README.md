@@ -28,4 +28,4 @@ Also, here are some potentially helpful notes for anyone who's looking to do som
  * BAR, Duck Dodgers, Indy Racing 2000, and the F-1 Games all have MODU files in them which seem to be object files used in compilation, or at least code grouped into files with extra debugging info. Might be helpful!
  
  
- Also, the MIO0 compression is copied (and modified slightly) from (Mr Peeps' Compressor)[https://github.com/Daniel-McCarthy/Mr-Peeps-Compressor]
+ Also, the MIO0 compression is copied (and modified slightly) from [Mr Peeps' Compressor](https://github.com/Daniel-McCarthy/Mr-Peeps-Compressor).
