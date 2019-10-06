@@ -26,3 +26,6 @@ Also, here are some potentially helpful notes for anyone who's looking to do som
  * The COMM sections don't really have any consistent format, and I think COMM is probably just a generic section for any type of data (and I'd guess COMM is short for COMMON)
   * Some files just have some PAD sections and then one section with data - in some cases this section has a different header than the file itself, but regardless of whether it does, I wrote the program to use the file extension based on the main header. So if you're looking at a file in the Unpacked section that's been unpacked to one file, it might be worth checking its Raw counterpart for that extra header in case that gives you help figuring it out.
  * BAR, Duck Dodgers, Indy Racing 2000, and the F-1 Games all have MODU files in them which seem to be object files used in compilation, or at least code grouped into files with extra debugging info. Might be helpful!
+ 
+ 
+ Also, the MIO0 compression is copied (and modified slightly) from (Mr Peeps' Compressor)[https://github.com/Daniel-McCarthy/Mr-Peeps-Compressor]
