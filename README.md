@@ -1,4 +1,4 @@
-# ParadigmFileExtractor
+# Paradigm File Extractor
 
 A program for extracting the files from any of Paradigm Entertainment's Nintendo 64 games. It should be able to extract the files from all of their games in all regions, i.e.
  * AeroFighters Assault
