@@ -86,6 +86,8 @@ seems like they're probably there as padding, maybe for alignment?
 ### "COMM" sections
 It seems like "COMM" is a catch-all for any type of data without a defined type - "COMM" is probably short for "COMMON".
 
+### TODO: AeroWings weirdness
+
 THEORY:
  * multi-region games
  * files needed in some versions but not others
