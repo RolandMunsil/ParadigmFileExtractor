@@ -1,6 +1,8 @@
 # File System Structure
 
-The file system for Paradigm's N64 games is, overall, pretty simple. At a certain point in the ROM, there's a file table which lists the locations of all the files, and then immediately after that are all the files. Most of the games have nothing else in them after the last file, except for some releases of AeroFighters Assault and Pilotwings 64 - I don't know if this extra data is more code or some sort of special file.
+(Note: whenever I refer to a game, I'm always referring to all of its releases unless I specifically say otherwise.)
+
+The file system for Paradigm's N64 games is, overall, pretty simple. At a certain point in the ROM, there's a file table which lists the locations of all the files, and then immediately after that are all the files. Most of the games have nothing else in them after the last file, except for Pilotwings 64 - I don't know if this extra data is more code or some sort of special file.
 
 Note that there isn't any consistent, easy-to-locate pointer to the file table - it's loaded in different places in each game and in many or all cases is generated directly by the code (as opposed to being copied from somewhere in the ROM). Thankfully, it's easy to find by looking for its header.
 
@@ -11,7 +13,7 @@ game, but "Racing + Duck Dodgers Games" isn't exactly concise :P)
 The flight games and the racing games have pretty different file table formats, so I need to explain them separately.
 
 ### Before we get into it
-Before I explain the file table, just a note about how the files themselves are structured - except for some special cases which I'll explain along the way, all entries in the file table start with a four-letter string "FORM", then the length of the file in bytes. The first four bytes of the file are always the file's "magic word", which is just another four-letter string that indicates what type of file is. For example:
+Before I explain the file table, just a note about how the files themselves are structured - except for some special cases which I'll explain along the way, all entries in the file table start with a four-letter string "FORM", then the length of the file in bytes. The first four bytes of the file are always the file's "magic word", which is just another four-letter string that indicates what type of file it is. For example:
 
 ![](https://github.com/RolandMunsil/ParadigmFileExtractor/blob/master/Documentation%20Images/file-header.png)
 
@@ -22,7 +24,7 @@ Also, in the racing games, nearly all file types will start with "UV" - I assume
 ### Racing game format
 The file table itself also has a file header - it starts with the string "FORM", followed by the length of the file table. After that is "UVFT", the file table's magic word. I assume the "FT" stands for File Table. 
 
-After this, there's just a bunch of lists of offsets. These lists start with a four-letter string, which in almost all cases is the magic word of all of the files in the list, then the length of the list in byes, and then a bunch of four-byte numbers which are offsets to the starts of files. These offsets are from the first address ending in 0 after the end of the file table. So, for example, if the file table ended at `0x25FC8`, the offsets would be from `0x25FD0`.
+After this, there's just a bunch of lists of offsets. These lists start with a four-letter string, which in almost all cases is the magic word of all of the files in the list, then the length of the list in bytes, and then a bunch of four-byte numbers which are offsets to the starts of files. These offsets are from the first address ending in 0 after the end of the file table. So, for example, if the file table ended at `0x25FC8`, the offsets would be from `0x25FD0`.
 
 ![](https://github.com/RolandMunsil/ParadigmFileExtractor/blob/master/Documentation%20Images/file-table.png)
 
@@ -58,23 +60,23 @@ After the magic word, the file consists of a series of sections which follow the
 
 This file starts off with a PAD section that's 4 bytes long and just contains `0x00000000`, and then another PAD section with the same data. Then we have a COMM section that's `0x18` bytes long with some data, and then some `PART` sections which are each `0x80` bytes long.
 
-I don't know what most of these section types mean, but there are a few that I do (and which are important to understand if you want to work on reverse-engineering any of these file formats)
+I don't know what most of these section types mean, but there are a few that I do (and which are important to understand if you want to work on reverse-engineering any of these file formats).
 
 ### "GZIP" sections (aka MIO0 sections)
-Sections that start with "GZIP" are, confusingly, actually files compressed using the [MIO0 compression format](https://hack64.net/wiki/doku.php?id=super_mario_64:mio0). After the section header is a magic word indicating the type of the data being compressed, followed by the expected size of the data once it's decompressed, and then the actual compressed data (which has it's own header, but that's part of the MIO0 format). I assume that at some point they were using or were planning on using the GZIP compression format at some point, and when they switched to MIO0 they kept the old header.
+Sections that start with "GZIP" are, confusingly, actually files compressed using the [MIO0 compression format](https://hack64.net/wiki/doku.php?id=super_mario_64:mio0). After the section header is a magic word indicating the type of the data being compressed, followed by the expected size of the data once it's decompressed, and then the actual compressed data (which has its own header, but that's part of the MIO0 format). I assume that at some point they were using or were planning on using the GZIP compression format, and when they switched to MIO0 they kept the old header.
 
 ![](https://github.com/RolandMunsil/ParadigmFileExtractor/blob/master/Documentation%20Images/gzip-section.png)
 
 In this example, the GZIP section itself is `0xA0` bytes long. It contains data in the `BITM` format, and when decompressed, will be `0x1A0` bytes long. Then what follows is the MIO0 data itself.
 
 ### "PAD " sections
-"PAD " sections always have just 4 bytes of data which is always `0x00000000`. Given the name "PAD", and the fact that they always just zeroes, it seems like they're probably there as padding, maybe for alignment?
+"PAD " sections always have just 4 bytes of data which is always `0x00000000`. Given the name "PAD", and the fact that they always consist of just zeroes, it seems like they're probably there as padding, maybe for alignment?
 
 ### "COMM" sections
 It seems like "COMM" is a catch-all for any type of data without a defined type - "COMM" might be short for "common".
 
 ## AeroFighters weirdness
-The above explanation covers the filesystems of all of the games Paradigm has released, except for one: AeroFighters Assault (and it's releases in other regions). For some reason these games have some really weird stuff going on in their filesystems.
+The above explanation covers the filesystems of all of the games Paradigm has released, except for one: AeroFighters Assault (and its releases in other regions). For some reason these games have some really weird stuff going on in their filesystems.
 
 ### Strange magic words
 The AeroFighers games have a few files with a magic word that's just four spaces, and a few with the magic word "Trai" (the only magic word with lowercase letters). These files are all together in the ROM, but I haven't looked into the file format itself to figure out what's special about them, so I have no clue what's up with them.
