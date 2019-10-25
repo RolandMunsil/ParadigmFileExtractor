@@ -238,7 +238,7 @@ namespace ParadigmFileExtractor
             {
                 // Check if there's actually useful data here
                 // In most cases it seems like this is just 0x0 until the next address that's a multiple of 16, and then 0xFF from then on until the end of the ROM.
-                int expectedStartOfFFs = prevFileEnd + (0x10 - (prevFileEnd % 0x10));
+                int expectedStartOfFFs = Next16ByteAlignedAddress(prevFileEnd);
                 int curPos = prevFileEnd;
                 bool potentiallyInterestingDataPresent = false;
                 for(; curPos < expectedStartOfFFs; curPos++)
@@ -249,11 +249,14 @@ namespace ParadigmFileExtractor
                         break;
                     }
                 }
+
+                // Some games fill the remaining with 0xFF, some with 0x00
+                byte testByte = romBytes[curPos];
                 if (!potentiallyInterestingDataPresent)
                 {
                     for (; curPos < romBytes.Length; curPos++)
                     {
-                        if (romBytes[curPos] != 0xFF)
+                        if (romBytes[curPos] != testByte)
                         {
                             potentiallyInterestingDataPresent = true;
                             break;
@@ -263,7 +266,7 @@ namespace ParadigmFileExtractor
 
                 if (potentiallyInterestingDataPresent)
                 {
-                    File.WriteAllBytes($"{outputDir}[0x{prevFileEnd:x6}] Data after all files.bin", romBytes.GetSubArray(prevFileEnd, romBytes.Length - prevFileEnd));
+                    File.WriteAllBytes($"{outputDir}[0x{expectedStartOfFFs:x6}] Data after all files.bin", romBytes.GetSubArray(expectedStartOfFFs, romBytes.Length - expectedStartOfFFs));
                 }
             }
 
@@ -284,6 +287,14 @@ namespace ParadigmFileExtractor
             {
                 Console.ReadKey();
             }
+        }
+
+        private static int Next16ByteAlignedAddress(int address)
+        {
+            if (address % 0x10 == 0)
+                return address;
+            else
+                return address + (0x10 - (address % 0x10));
         }
 
         private static int SearchForFileTable(byte[] romBytes)
@@ -307,10 +318,7 @@ namespace ParadigmFileExtractor
             int fileTableLength = romBytes.ReadInt(FILE_TABLE_LOCATION + 4);
             int startOfFiles = FILE_TABLE_LOCATION + 8 + fileTableLength;
             // Align to 16-byte index
-            if ((startOfFiles & 0xF) != 0x0)
-            {
-                startOfFiles += 0x10 - (startOfFiles & 0xF);
-            }
+            startOfFiles = Next16ByteAlignedAddress(startOfFiles);
 
             byte[] fileTable = romBytes.GetSubArray(FILE_TABLE_LOCATION + 8, fileTableLength);
 
