@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="AsyncWriteHelper.cs" />
     <Compile Include="ByteArrayHelpers.cs" />
+    <Compile Include="FileTable.cs" />
     <Compile Include="FormUnpacker.cs" />
     <Compile Include="PeepsCompressorMIO0\MIO0.cs" />
     <Compile Include="Program.cs" />

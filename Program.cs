@@ -9,37 +9,6 @@ namespace ParadigmFileExtractor
 {
     class Program
     {
-        //TODO: should i just get rid of this? search should be able to find it correctly every time.
-        static Dictionary<string, int> serialToFileTablePtr = new Dictionary<string, int>
-        {
-            {"NNSE", 0x237D0}, // Beetle Adventure Racing (US)
-            {"NNSP", 0x237D0}, // Beetle Adventure Racing (EU)
-            {"NB8J", 0x23270}, // Beetle Adventure Racing (JP)
-            {"NNSX", 0x233E0}, // HSV Adventure Racing (AU)
-
-            {"NICE", 0x5AF680}, // Indy Racing 2000 (US)
-
-            {"NDUE", 0x6EE260}, // Duck Dodgers Starring Daffy Duck (US) 
-            {"NDUP", 0x6EE5E0}, // Daffy Duck Starring as Duck Dodgers (EU)
-
-            {"NFWE", 0x334F0}, // F-1 World Grand Prix (US)
-            {"NFWP", 0x335C0}, // F-1 World Grand Prix (EU)
-            {"NFWF", 0x335A0}, // F-1 World Grand Prix (FR)
-            {"NFWD", 0x33B70}, // F-1 World Grand Prix (DE)
-            {"NFWJ", 0x33720}, // F-1 World Grand Prix (JP)
-
-            {"NF2P", 0x2F040}, // F-1 World Grand Prix II (EU)
-
-            {"NPWE", 0xDE720}, // Pilotwings 64 (US)
-            {"NPWP", 0xE02A0}, // Pilotwings 64 (EU) 
-            {"NPWJ", 0xDEC30}, // Pilotwings 64 (JP)
-
-            {"NERE", 0x118690 }, // AeroFighters Assault (US)
-            {"NSAP", 0x125460 }, // AeroFighters Assault (EU)
-
-            {"NSAJ", 0x117D50 } // Sonic Wings Assault (JP)
-        };
-
         // Note: files with a mismatch between file table type and type in header will have it
         // concatenated to <headertype>/<filetabletype>
 
@@ -47,38 +16,38 @@ namespace ParadigmFileExtractor
         static Dictionary<string, string> magicWordToFolderName = new Dictionary<string, string>
         {
             {"    ",      "BLANK_FILETYPE" }, // Weird filetype in AeroFighters Assault
-            {"3VUE",      "3vue"}, // couldn't find any loader code
-            {"ADAT",      "adat"}, // couldn't find any loader code
+            {"3VUE",      "3VUE"}, // couldn't find any loader code
+            {"ADAT",      "ADAT"}, // couldn't find any loader code
             {"CNMA",      "cinema"},
-            {"DEMO",      "demo"}, // couldn't find any loader code
+            {"DEMO",      "DEMO"}, // couldn't find any loader code
             {"FTKL",      "itrack"},
-            {"LART",      "lart"}, // couldn't find any loader code
-            {"PDAT",      "pdat"}, // couldn't find any loader code
-            {"SDOC",      "sdoc"}, // couldn't find any loader code
-            {"SHAN",      "shan"}, // couldn't find any loader code
-            {"SLAN",      "slan"}, // couldn't find any loader code
-            {"SPTH",      "spth"}, // couldn't find any loader code
-            {"SRED",      "sred"}, // couldn't find any loader code
-            {"SSHT",      "ssht"}, // couldn't find any loader code
+            {"LART",      "LART"}, // couldn't find any loader code
+            {"PDAT",      "PDAT"}, // couldn't find any loader code
+            {"SDOC",      "SDOC"}, // couldn't find any loader code
+            {"SHAN",      "SHAN"}, // couldn't find any loader code
+            {"SLAN",      "SLAN"}, // couldn't find any loader code
+            {"SPTH",      "SPTH"}, // couldn't find any loader code
+            {"SRED",      "SRED"}, // couldn't find any loader code
+            {"SSHT",      "SSHT"}, // couldn't find any loader code
             {"STRY",      "f1story"},
             {"Trai",      "Trai"}, // Weird filetype in AeroFighters Assault
-            {"UPWL",      "upwl"}, // couldn't find any loader code
-            {"UPWT",      "upwt"}, // couldn't find any loader code
+            {"UPWL",      "UPWL"}, // couldn't find any loader code
+            {"UPWT",      "UPWT"}, // couldn't find any loader code
             {"UVAN",      "janim"},
             {"UVBT",      "blit"},
             {"UVCT",      "contour"},
             {"UVDS",      "dset"},
             {"UVEN",      "env"},
             {"UVFT",      "font"},
-            {"UVLT",      "lt"}, // couldn't find any loader code
-            {"UVLV",      "lv"}, // couldn't find any loader code
-            {"UVMB",      "mb"}, // couldn't find any loader code
+            {"UVLT",      "UVLT"}, // couldn't find any loader code
+            {"UVLV",      "UVLV"}, // couldn't find any loader code
+            {"UVMB",      "UVMB"}, // couldn't find any loader code
             {"UVMD",      "uvmodel"},
-            {"UVMO/MODU", "modu"}, // couldn't find any loader code
-            {"UVMS",      "ms"}, // couldn't find any loader code
+            {"UVMO/MODU", "MODU"}, // couldn't find any loader code
+            {"UVMS",      "UVMS"}, // couldn't find any loader code
             {"UVPX",      "pfx"},
-            {"UVSX",      "sx"}, // couldn't find any loader code
-            {"UVSY",      "sy"}, // couldn't find any loader code
+            {"UVSX",      "UVSX"}, // couldn't find any loader code
+            {"UVSY",      "UVSY"}, // couldn't find any loader code
             {"UVTR",      "terra"},
             {"UVTP",      "texturexref"},
             {"UVTS/UVSQ", "tseq"},
@@ -105,45 +74,10 @@ namespace ParadigmFileExtractor
             romBytes = File.ReadAllBytes(romPath);
             outputDir = Path.GetFileNameWithoutExtension(romPath) + "/";
 
-            Console.WriteLine("Locating file table...");
-            string serial = romBytes.ReadMagicWord(0x3B);
-            int fileTablePtr;
-            bool hadToSearch = false;
-            if(serialToFileTablePtr.ContainsKey(serial))
-            {
-                fileTablePtr = serialToFileTablePtr[serial];
-                Console.WriteLine($"Matched game serial to file table location! ({serial} -> 0x{fileTablePtr:x})");
-
-                // Check that this pointer is correct
-                if (romBytes.ReadMagicWord(fileTablePtr) != "FORM" || (romBytes.ReadMagicWord(fileTablePtr + 8) != "UVFT" && romBytes.ReadMagicWord(fileTablePtr + 8) != "UVRM"))
-                {
-                    Console.WriteLine("Stored file table location was incorrect - initiating a search for file table header...");
-                    fileTablePtr = SearchForFileTable(romBytes);
-                    hadToSearch = true;
-                }
-            }
-            else
-            {
-                Console.WriteLine("Game serial not in database - initiating a search for file table header...");
-                fileTablePtr = SearchForFileTable(romBytes);
-                hadToSearch = true;
-            }
-
-            if(fileTablePtr == -1)
-            {
-                Console.WriteLine("ERROR: Could not locate file table.");
-                throw new InvalidOperationException();
-            }
-            else if (hadToSearch)
-            {
-                Console.WriteLine("File table found by searching!");
-            }
-
             Console.WriteLine("Parsing file table...");
-            bool isCompressedFileTable;
-            Dictionary<int, string> fileTablePtrToType = ParseFileTable(fileTablePtr, out isCompressedFileTable);
-            List<KeyValuePair<int, string>> orderedTable = fileTablePtrToType.OrderBy(kv => kv.Key).ToList();
-            int startOfFiles = orderedTable[0].Key;
+            FileTable fileTable = FileTable.Get(romBytes);
+            List<(int, string)> orderedTable = fileTable.AllFileLocationsAndMagicWords.OrderBy(tuple => tuple.Item1).ToList();
+            int startOfFiles = orderedTable[0].Item1;
 
             VerifyNoFilesMissingFromFileTable(orderedTable);
             
@@ -152,16 +86,14 @@ namespace ParadigmFileExtractor
             Directory.CreateDirectory(outputDir + UNPACKED_SUBDIR);
 
             //Save off bits before file table
-            File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, fileTablePtr));
+            File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, fileTable.FormEntryLocation));
             Console.WriteLine("Section of ROM that's before file table saved to file.");
 
             //Save file table
-            int fTableLength = romBytes.ReadInt(fileTablePtr + 4);
-            byte[] fTableBytes = romBytes.GetSubArray(fileTablePtr + 8, fTableLength);
-            File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table.bin", fTableBytes);
-            if(isCompressedFileTable)
+            File.WriteAllBytes($"{outputDir}[0x{fileTable.FormEntryLocation:x6}] File Table.bin", fileTable.RawTableBytes);
+            if(fileTable.Type == FileTable.FileTableType.FlightGame)
             {
-                File.WriteAllBytes($"{outputDir}[0x{fileTablePtr:x6}] File Table (decompressed).bin", FormUnpacker.DecompressUVRMFileTable(fTableBytes));
+                File.WriteAllBytes($"{outputDir}[0x{fileTable.FormEntryLocation:x6}] File Table (decompressed).bin", fileTable.DecompressedTableBytes);
             }
             Console.WriteLine("File table saved to file.");
 
@@ -173,9 +105,9 @@ namespace ParadigmFileExtractor
             int prevFileEnd = startOfFiles;
             for (int i = 0; i < orderedTable.Count; i++)
             {
-                KeyValuePair<int, string> kvPair = orderedTable[i];
-                int formPtr = kvPair.Key;
-                string magicWordInFileTable = kvPair.Value;
+                (int, string) kvPair = orderedTable[i];
+                int formPtr = kvPair.Item1;
+                string magicWordInFileTable = kvPair.Item2;
 
                 if (formPtr > prevFileEnd)
                 {
@@ -193,7 +125,7 @@ namespace ParadigmFileExtractor
                     if (romBytes.ReadMagicWord(formPtr) != "FORM")
                     {
                         // File has no header
-                        sectionLength = orderedTable[i + 1].Key - formPtr;
+                        sectionLength = orderedTable[i + 1].Item1 - formPtr;
                         SaveHeaderlessFile(formPtr, sectionLength);
                     }
                     else
@@ -289,7 +221,7 @@ namespace ParadigmFileExtractor
             }
         }
 
-        private static int Next16ByteAlignedAddress(int address)
+        public static int Next16ByteAlignedAddress(int address)
         {
             if (address % 0x10 == 0)
                 return address;
@@ -297,105 +229,15 @@ namespace ParadigmFileExtractor
                 return address + (0x10 - (address % 0x10));
         }
 
-        private static int SearchForFileTable(byte[] romBytes)
-        {
-            //Find first FORM + UVFT magic word in ROM
-            for (int pos = 0; pos < romBytes.Length; pos++)
-            {
-                if(romBytes.ReadMagicWord(pos) == "FORM" && (romBytes.ReadMagicWord(pos+8) == "UVFT" || romBytes.ReadMagicWord(pos + 8) == "UVRM"))
-                {
-                    return pos;
-                }
-            }
-
-            return -1;
-        }
-
-        private static Dictionary<int, string> ParseFileTable(int FILE_TABLE_LOCATION, out bool isCompressedFileTable)
-        {
-            Dictionary<int, string> fileTablePtrToType = new Dictionary<int, string>();
-
-            int fileTableLength = romBytes.ReadInt(FILE_TABLE_LOCATION + 4);
-            int startOfFiles = FILE_TABLE_LOCATION + 8 + fileTableLength;
-            // Align to 16-byte index
-            startOfFiles = Next16ByteAlignedAddress(startOfFiles);
-
-            byte[] fileTable = romBytes.GetSubArray(FILE_TABLE_LOCATION + 8, fileTableLength);
-
-            if(fileTable.ReadMagicWord(0) == "UVFT")
-            {
-                isCompressedFileTable = false;
-
-                // Read the file table
-                int curFileTablePos = 4;
-                while (curFileTablePos < fileTableLength)
-                {
-                    // Read the magic word and length
-                    string fileType = fileTable.ReadMagicWord(curFileTablePos);
-                    int sectionLength = fileTable.ReadInt(curFileTablePos + 4);
-                    curFileTablePos += 8;
-                    // Read the section
-                    for (int sectionPos = 0; sectionPos < sectionLength; sectionPos += 4)
-                    {
-                        int tableWord = fileTable.ReadInt(curFileTablePos + sectionPos);
-                        if ((uint)tableWord == 0xFFFFFFFF)
-                        {
-                            //Console.WriteLine($"FFFFFF ptr! @ {curFileTablePos + sectionPos:x}");
-                            continue;
-                        }
-                        int filePtr = startOfFiles + tableWord;
-                        if (fileTablePtrToType.ContainsKey(filePtr))
-                        {
-                            throw new Exception("Duplicate references in file table!");
-                        }
-
-                        // Console.WriteLine($"Ptr: {tableWord:x} | Type: {fileType}");
-                        fileTablePtrToType.Add(filePtr, fileType);
-                    }
-                    curFileTablePos += sectionLength;
-                }
-            }
-            else if(fileTable.ReadMagicWord(0) == "UVRM")
-            {
-                isCompressedFileTable = true;
-
-                byte[] decompressedFileTable = FormUnpacker.DecompressUVRMFileTable(fileTable);
-                if(decompressedFileTable.Length % 8 != 0)
-                {
-                    throw new InvalidOperationException("File table is invalid length (not a multiple of 8)!");
-                }
-                int curFilePos = startOfFiles;
-                for (int i = 0; i < decompressedFileTable.Length; i += 8)
-                {
-                    string magicWord = decompressedFileTable.ReadMagicWord(i);
-                    int formLength = decompressedFileTable.ReadInt(i + 4);
-
-                    if((romBytes.ReadInt(curFilePos + 4) + 8) != formLength)
-                    {
-                        throw new InvalidDataException("Error parsing file table - length in file table does not match length in file header!");
-                    }
-
-                    fileTablePtrToType.Add(curFilePos, magicWord);
-
-                    curFilePos += formLength;
-                }
-            }
-            else
-            {
-                throw new InvalidOperationException("Failed to parse file table due to unrecognized magic word in header!");
-            }
-
-            return fileTablePtrToType;
-        }
-
-        private static void VerifyNoFilesMissingFromFileTable(List<KeyValuePair<int, string>> orderedFileTable)
+        
+        private static void VerifyNoFilesMissingFromFileTable(List<(int, string)> orderedFileTable)
         {
             for(int i = 0; i < orderedFileTable.Count - 1; i++)
             {
-                int filePtr = orderedFileTable[i].Key;
+                int filePtr = orderedFileTable[i].Item1;
                 if (romBytes.ReadMagicWord(filePtr) != "FORM")
                 {
-                    if(orderedFileTable[i].Value != "UVRW")
+                    if(orderedFileTable[i].Item2 != "UVRW")
                     {
                         throw new InvalidOperationException("Found headerless file in file table that wasn't a UVRW file!");
                     }
@@ -403,7 +245,7 @@ namespace ParadigmFileExtractor
                     continue;
                 }
                 int fileLength = romBytes.ReadInt(filePtr + 4);
-                if(filePtr + 8 + fileLength != orderedFileTable[i+1].Key)
+                if(filePtr + 8 + fileLength != orderedFileTable[i+1].Item1)
                 {
                     throw new Exception();
                 }
