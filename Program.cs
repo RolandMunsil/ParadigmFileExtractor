@@ -28,7 +28,7 @@ namespace ParadigmFileExtractor
                     FilesystemExtractor.ExtractToFolder(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "dump-converted-images":
-                    //UVTXConverter.DumpTextures(File.ReadAllBytes(romPath), outputDir);
+                    UVTXConverter.DumpTextures(File.ReadAllBytes(romPath), outputDir);
                     UVBTConverter.DumpBlits(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "show-models":

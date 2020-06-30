@@ -48,6 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Common\Texels.cs" />
     <Compile Include="Filesystem\Filesystem.cs" />
     <Compile Include="Util\AsyncWriteHelper.cs" />
     <Compile Include="Util\ByteArrayHelpers.cs" />
