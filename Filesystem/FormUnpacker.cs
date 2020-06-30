@@ -55,13 +55,13 @@ namespace ParadigmFileExtractor
                 {
                     case "\0\0\0\0":
                         // Some files in AeroFighters Assault just have a bunch of 0s at the end randomly???
-                        while(pos < file.Length && file.ReadInt(pos) == 0x0)
+                        while(pos < file.Length && file.ReadInt32(pos) == 0x0)
                         {
                             pos += 4;
                         }
                         continue;
                     case "PAD ":
-                        pos += 8 + file.ReadInt(pos + 4);
+                        pos += 8 + file.ReadInt32(pos + 4);
                         continue;
                     case "GZIP":
                         string compressedDataMagicWord;
@@ -83,15 +83,15 @@ namespace ParadigmFileExtractor
 
         private static byte[] ExtractGzipSection(byte[] form, int subSecPos, out int sectionlength, out string compressedDataMagicWord)
         {
-            sectionlength = 8 + form.ReadInt(subSecPos + 4);
+            sectionlength = 8 + form.ReadInt32(subSecPos + 4);
 
             compressedDataMagicWord = form.ReadMagicWord(subSecPos + 8);
-            int decompressedLength = form.ReadInt(subSecPos + 12);
+            int decompressedLength = form.ReadInt32(subSecPos + 12);
             if (form.ReadMagicWord(subSecPos + 16) != "MIO0")
             {
                 throw new InvalidOperationException("GZIP file is missing MIO0 in header.");
             }
-            if (decompressedLength != form.ReadInt(subSecPos + 20))
+            if (decompressedLength != form.ReadInt32(subSecPos + 20))
             {
                 throw new InvalidOperationException("Length mismatch in GZIP header.");
             }
@@ -106,9 +106,9 @@ namespace ParadigmFileExtractor
 
         public static byte[] ReadDataInSection(byte[] form, int subSecPos, out int sectionlength)
         {
-            int dataLength = form.ReadInt(subSecPos + 4);
+            int dataLength = form.ReadInt32(subSecPos + 4);
             sectionlength = 8 + dataLength;
-            return form.GetSubArray(subSecPos + 8, dataLength);
+            return form.Subsection(subSecPos + 8, dataLength);
         }
     }
 }

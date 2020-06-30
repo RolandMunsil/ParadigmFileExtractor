@@ -87,13 +87,13 @@ namespace ParadigmFileExtractor.Filesystem
 
                     prevFileEnd = orderedTable[i + 1].Item1;
 
-                    data = romBytes.GetSubArray(formPtr, prevFileEnd - formPtr);
+                    data = romBytes.Subsection(formPtr, prevFileEnd - formPtr);
                 }
                 else
                 {
-                    int fileLength = romBytes.ReadInt(formPtr + 4);
+                    int fileLength = romBytes.ReadInt32(formPtr + 4);
                     magicWordInFileHeader = romBytes.ReadMagicWord(formPtr + 8);
-                    data = romBytes.GetSubArray(formPtr + 8, fileLength);
+                    data = romBytes.Subsection(formPtr + 8, fileLength);
 
                     prevFileEnd = formPtr + 8 + fileLength;
                 }

@@ -53,8 +53,8 @@ namespace ParadigmFileExtractor.Filesystem
         {
             (FormEntryLocation, Type) = SearchForFileTable(rom);
 
-            int fileTableLength = rom.ReadInt(FormEntryLocation + 4);
-            RawTableBytes = rom.GetSubArray(FormEntryLocation + 8, fileTableLength);
+            int fileTableLength = rom.ReadInt32(FormEntryLocation + 4);
+            RawTableBytes = rom.Subsection(FormEntryLocation + 8, fileTableLength);
             ParseFileTable();
         }
 
@@ -97,12 +97,12 @@ namespace ParadigmFileExtractor.Filesystem
                 {
                     // Read the magic word and length
                     string fileType = RawTableBytes.ReadMagicWord(curFileTablePos);
-                    int sectionLength = RawTableBytes.ReadInt(curFileTablePos + 4);
+                    int sectionLength = RawTableBytes.ReadInt32(curFileTablePos + 4);
                     curFileTablePos += 8;
                     // Read the section
                     for (int sectionPos = 0; sectionPos < sectionLength; sectionPos += 4)
                     {
-                        int fileOffset = RawTableBytes.ReadInt(curFileTablePos + sectionPos);
+                        int fileOffset = RawTableBytes.ReadInt32(curFileTablePos + sectionPos);
                         if (fileOffset == -1)
                         {
                             addToDict(fileType, -1);
@@ -126,7 +126,7 @@ namespace ParadigmFileExtractor.Filesystem
                 for (int i = 0; i < DecompressedTableBytes.Length; i += 8)
                 {
                     string magicWord = DecompressedTableBytes.ReadMagicWord(i);
-                    int formLength = DecompressedTableBytes.ReadInt(i + 4);
+                    int formLength = DecompressedTableBytes.ReadInt32(i + 4);
 
                     //if ((romBytes.ReadInt(curFilePos + 4) + 8) != formLength)
                     //{

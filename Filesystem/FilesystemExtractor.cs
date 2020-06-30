@@ -67,19 +67,12 @@ namespace ParadigmFileExtractor.Filesystem
             Console.WriteLine("Parsing filesystem...");
             Filesystem filesystem = new Filesystem(romBytes);
 
-
-            //FileTable fileTable = FileTable.Get(romBytes);
-            //List<(int, string)> orderedTable = fileTable.AllFileLocationsAndMagicWords.OrderBy(tuple => tuple.Item1).ToList();
-            //int startOfFiles = orderedTable[0].Item1;
-
-            //VerifyNoFilesMissingFromFileTable(orderedTable, romBytes);
-
             Directory.CreateDirectory(outputDir);
             Directory.CreateDirectory(outputDir + RAW_SUBDIR);
             Directory.CreateDirectory(outputDir + UNPACKED_SUBDIR);
 
             //Save off bits before file table
-            File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.GetSubArray(0, filesystem.StartLocationInROM));
+            File.WriteAllBytes(outputDir + "[0x00000] Data before file table.bin", romBytes.Subsection(0, filesystem.StartLocationInROM));
             Console.WriteLine("Section of ROM that's before file table saved to file.");
 
             //Save file table
@@ -131,64 +124,6 @@ namespace ParadigmFileExtractor.Filesystem
                 }
             }
 
-
-            //int prevFileEnd = startOfFiles;
-            //for (int i = 0; i < orderedTable.Count; i++)
-            //{
-            //    (int, string) kvPair = orderedTable[i];
-            //    int formPtr = kvPair.Item1;
-            //    string magicWordInFileTable = kvPair.Item2;
-
-            //    if (formPtr > prevFileEnd)
-            //    {
-            //        File.WriteAllBytes($"{outputDir}[0x{prevFileEnd:x6}].bin", romBytes.GetSubArray(prevFileEnd, formPtr - prevFileEnd));
-            //    }
-
-            //    int sectionLength;
-            //    string niceFileType;
-
-            //    if (magicWordInFileTable == "UVRW")
-            //    {
-            //        niceFileType = "raw";
-
-            //        // This is a raw file, it needs special handling.
-            //        if (romBytes.ReadMagicWord(formPtr) != "FORM")
-            //        {
-            //            // File has no header
-            //            sectionLength = orderedTable[i + 1].Item1 - formPtr;
-            //            SaveHeaderlessFile(formPtr, sectionLength, romBytes, outputDir);
-            //        }
-            //        else
-            //        {
-            //            // File has a header
-            //            string fileType = romBytes.ReadMagicWord(formPtr + 8).ToLower();
-            //            sectionLength = 8 + SaveFormToFile(formPtr, fileType, romBytes, outputDir, RAW_FILETYPE_DIR);
-            //        }
-
-            //    }
-            //    else
-            //    {
-            //        string magicWordInFileHeader = romBytes.ReadMagicWord(formPtr + 8);
-
-            //        niceFileType = GetNiceFileType(magicWordInFileTable, magicWordInFileHeader);
-
-            //        sectionLength = 8 + SaveFormToFile(formPtr, niceFileType, romBytes, outputDir);
-            //    }
-
-            //    if (!fileTypeCount.ContainsKey(niceFileType))
-            //        fileTypeCount[niceFileType] = 1;
-            //    else
-            //        fileTypeCount[niceFileType]++;
-
-            //    prevFileEnd = formPtr + sectionLength;
-
-            //    if ((i % 100 == 99) || consoleOutputStopwatch.ElapsedMilliseconds > 2000)
-            //    {
-            //        Console.WriteLine($"{i + 1}/{orderedTable.Count} files extracted...");
-            //        consoleOutputStopwatch.Restart();
-            //    }
-            //}
-
             if (filesystem.EndLocationInROM < romBytes.Length)
             {
                 // Check if there's actually useful data here
@@ -221,7 +156,7 @@ namespace ParadigmFileExtractor.Filesystem
 
                 if (potentiallyInterestingDataPresent)
                 {
-                    File.WriteAllBytes($"{outputDir}[0x{expectedStartOfFFs:x6}] Data after all files.bin", romBytes.GetSubArray(expectedStartOfFFs, romBytes.Length - expectedStartOfFFs));
+                    File.WriteAllBytes($"{outputDir}[0x{expectedStartOfFFs:x6}] Data after all files.bin", romBytes.Subsection(expectedStartOfFFs, romBytes.Length - expectedStartOfFFs));
                 }
             }
 

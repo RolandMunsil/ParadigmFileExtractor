@@ -19,9 +19,9 @@ namespace PeepsCompress
 
             if (magicNumber == "MIO0")
             {
-                int decompressedLength = data.ReadInt(offset + 4);
-                int compressedOffset = data.ReadInt(offset + 8) + offset;
-                int uncompressedOffset = data.ReadInt(offset + 12) + offset;
+                int decompressedLength = data.ReadInt32(offset + 4);
+                int compressedOffset = data.ReadInt32(offset + 8) + offset;
+                int uncompressedOffset = data.ReadInt32(offset + 12) + offset;
                 int currentOffset;
 
                 inputFile.Seek(offset + 16, SeekOrigin.Begin);
