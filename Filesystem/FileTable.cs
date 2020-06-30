@@ -1,11 +1,12 @@
-﻿using System;
+﻿using ParadigmFileExtractor.Filesystem;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ParadigmFileExtractor
+namespace ParadigmFileExtractor.Filesystem
 {
     public class FileTable
     {
@@ -86,7 +87,7 @@ namespace ParadigmFileExtractor
 
             int startOfFiles = FormEntryLocation + 8 + RawTableBytes.Length;
             // Align to 16-byte index
-            startOfFiles = Program.Next16ByteAlignedAddress(startOfFiles);
+            startOfFiles = FilesystemExtractor.Next16ByteAlignedAddress(startOfFiles);
 
             if (this.Type == FileTableType.Normal)
             {

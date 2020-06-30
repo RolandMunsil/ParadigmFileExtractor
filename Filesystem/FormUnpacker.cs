@@ -9,23 +9,23 @@ namespace ParadigmFileExtractor
 {
     class FormUnpacker
     {
-        public static void UnpackFile(byte[] file, string unpackDir, string unpackFilename)
-        {
-            List<(string, byte[])> sections = ExtractFileSections(file);
+        //public static void UnpackFile(byte[] file, string unpackDir, string unpackFilename)
+        //{
+        //    List<(string, byte[])> sections = ExtractFileSections(file);
 
-            if (sections.Count == 1)
-            {
-                AsyncWriteHelper.WriteAllBytes($"{unpackFilename}", sections[0].Item2);
-            }
-            else
-            {
-                Directory.CreateDirectory(unpackDir);
-                foreach ((string filename, byte[] data) in sections)
-                {
-                    AsyncWriteHelper.WriteAllBytes($"{unpackDir}{filename}", data);
-                }
-            }
-        }
+        //    if (sections.Count == 1)
+        //    {
+        //        AsyncWriteHelper.WriteAllBytes($"{unpackFilename}", sections[0].Item2);
+        //    }
+        //    else
+        //    {
+        //        Directory.CreateDirectory(unpackDir);
+        //        foreach ((string filename, byte[] data) in sections)
+        //        {
+        //            AsyncWriteHelper.WriteAllBytes($"{unpackDir}{filename}", data);
+        //        }
+        //    }
+        //}
 
         public static byte[] DecompressUVRMFileTable(byte[] compressedFileTable)
         {
@@ -39,7 +39,7 @@ namespace ParadigmFileExtractor
             return sections[0].Item2;
         }
 
-        private static List<(string, byte[])> ExtractFileSections(byte[] file)
+        public static List<(string, byte[])> ExtractFileSections(byte[] file)
         {
             List<(string, byte[])> sections = new List<(string, byte[])>();
 
@@ -49,7 +49,7 @@ namespace ParadigmFileExtractor
             {
                 string nextMagicWord = file.ReadMagicWord(pos);
                 byte[] containedData;
-                string filename;
+                string magicWord;
                 int sectionLength;
                 switch (nextMagicWord)
                 {
@@ -66,15 +66,15 @@ namespace ParadigmFileExtractor
                     case "GZIP":
                         string compressedDataMagicWord;
                         containedData = ExtractGzipSection(file, pos, out sectionLength, out compressedDataMagicWord);
-                        filename = $"{subSectionCtr:d2}.{compressedDataMagicWord}";
+                        magicWord = compressedDataMagicWord;
                         break;
                     default:
                         containedData = ReadDataInSection(file, pos, out sectionLength);
-                        filename = $"{subSectionCtr:d2}.{nextMagicWord.ToLower().Replace(".", "")}";
+                        magicWord = nextMagicWord;
                         break;
                 }
                 subSectionCtr++;
-                sections.Add((filename, containedData));
+                sections.Add((magicWord, containedData));
                 pos += sectionLength;
             }
 

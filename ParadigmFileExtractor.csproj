@@ -43,11 +43,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AsyncWriteHelper.cs" />
-    <Compile Include="ByteArrayHelpers.cs" />
-    <Compile Include="FileTable.cs" />
-    <Compile Include="FormUnpacker.cs" />
-    <Compile Include="PeepsCompressorMIO0\MIO0.cs" />
+    <Compile Include="Filesystem\Filesystem.cs" />
+    <Compile Include="Util\AsyncWriteHelper.cs" />
+    <Compile Include="Util\ByteArrayHelpers.cs" />
+    <Compile Include="Filesystem\FilesystemExtractor.cs" />
+    <Compile Include="Filesystem\FileTable.cs" />
+    <Compile Include="Filesystem\FormUnpacker.cs" />
+    <Compile Include="Filesystem\MIO0.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
