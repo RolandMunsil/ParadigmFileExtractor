@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
 namespace ParadigmFileExtractor.UVMD
 {
     class UVMDDisplayer
@@ -14,7 +15,7 @@ namespace ParadigmFileExtractor.UVMD
 
             foreach (Filesystem.Filesystem.File file in filesystem.AllFiles.Where(file => file.fileTypeFromFileHeader == "UVMD"))
             {
-                UVMDFile uvmd = new UVMDFile(file.Sections.Single().Item2);
+                UVMDFile uvmd = new UVMDFile(file.Sections.Single().Item2, filesystem);
             }
         }
     }

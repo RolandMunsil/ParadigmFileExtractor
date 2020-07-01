@@ -8,7 +8,10 @@ using ParadigmFileExtractor.Filesystem;
 using ParadigmFileExtractor.UVTX;
 using ParadigmFileExtractor.UVBT;
 using ParadigmFileExtractor.UVMD;
+using ParadigmFileExtractor.Common;
+using ParadigmFileExtractor.UVFT;
 
+#nullable enable
 namespace ParadigmFileExtractor
 {
     class Program
@@ -22,7 +25,7 @@ namespace ParadigmFileExtractor
             string romPath = String.Join(" ", args.Skip(1)).Replace("\"", "");
             string outputDir = Path.GetFileNameWithoutExtension(romPath) + "/";
 
-            switch(action)
+            switch (action)
             {
                 case "dump-filesystem":
                     FilesystemExtractor.ExtractToFolder(File.ReadAllBytes(romPath), outputDir);
@@ -30,6 +33,9 @@ namespace ParadigmFileExtractor
                 case "dump-converted-images":
                     UVTXConverter.DumpTextures(File.ReadAllBytes(romPath), outputDir);
                     UVBTConverter.DumpBlits(File.ReadAllBytes(romPath), outputDir);
+                    break;
+                case "dump-converted-fonts":
+                    UVFTConverter.DumpFonts(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "show-models":
                     UVMDDisplayer.DisplayModels(File.ReadAllBytes(romPath));

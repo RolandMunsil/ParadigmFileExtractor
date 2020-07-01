@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
 namespace ParadigmFileExtractor.UVMD
 {
     class UVMDFile
@@ -59,7 +60,7 @@ namespace ParadigmFileExtractor.UVMD
 
             public override string ToString()
             {
-                return $"({x}, {y}, {z}) [{index}] {unk1} {unk2} 0x{colorR:X2}{colorG:X2}{colorB:X2}{colorA:X2}";
+                return $"({x}, {y}, {z}) [{index}] {unk1 / (float)0b100000} {unk2 / (float)0b100000} 0x{colorR:X2}{colorG:X2}{colorB:X2}{colorA:X2}";
             }
         }
 
@@ -173,7 +174,7 @@ namespace ParadigmFileExtractor.UVMD
         // easier.
         static uint FAKE_VERTICES_LOCATION_IN_RAM = 0x80000000;
 
-        public UVMDFile(byte[] fileBytes)
+        public UVMDFile(byte[] fileBytes, Filesystem.Filesystem filesystem)
         {
             Console.WriteLine("NEW UVMD");
 
@@ -299,6 +300,7 @@ namespace ParadigmFileExtractor.UVMD
                         Console.WriteLine($"      {material.unk4:X8}");
                         if (textureRef != 0xFFF)
                         {
+                            //Filesystem.Filesystem.File textureFile = filesystem.GetFile("UVTX", (int)textureRef);
                             // TODO: load texture
                             Console.WriteLine("      Textured!");
                         }
@@ -322,7 +324,16 @@ namespace ParadigmFileExtractor.UVMD
                         material.pVertices = fileBytes.Subsection(curPtr, material.vertCount * 16).InGroupsOf(16).Select(d => new Vertex(d)).ToArray();
                         curPtr += material.vertCount * 16;
 
-                        ushort prevUnconvertedTriangle = 0;
+
+                        if (textureRef != 0xFFF)
+                        {
+                            foreach(var x in material.pVertices)
+                            {
+                                Console.WriteLine(x);
+                            }
+                        }
+
+                            ushort prevUnconvertedTriangle = 0;
                         int ctZero = 0;
                         RSPCommand[] commands = new RSPCommand[commandCount];
                         for (int l = 0; l < shortsCount; l++)
@@ -425,7 +436,7 @@ namespace ParadigmFileExtractor.UVMD
                 {
                     //if (lod.partCount > 1)
                     //{
-                    List<float> lodData = new List<float>();
+                    List<Vertex> lodData = new List<Vertex>();
                     for (int i = 0; i < lod.partCount; i++)
                     {
                         ModelPart part = lod.pModelParts[i];
@@ -438,15 +449,15 @@ namespace ParadigmFileExtractor.UVMD
                 }
         }
 
-        private static void DisplayModel(List<float> triangles)
+        private static void DisplayModel(List<Vertex> triangles)
         {
-            using (Window window = new Window(800, 600, triangles))
+            using (UVMDDisplayWindow window = new UVMDDisplayWindow(800, 600, triangles))
             {
                 window.Run(60.0);
             }
         }
 
-        private static List<float> MaterialToVertexData(Vertex[] vertices, RSPCommand[] triEntries, Matrix matrix)
+        private static List<Vertex> MaterialToVertexData(Vertex[] vertices, RSPCommand[] triEntries, Matrix matrix)
         {
             Dictionary<uint, Vertex> rspVertexBuffer = new Dictionary<uint, Vertex>();
             List<Vertex> triangles = new List<Vertex>();
@@ -495,7 +506,25 @@ namespace ParadigmFileExtractor.UVMD
                     throw new Exception();
             }
 
-            return Window.UVMDVerticesToWindowVertices(triangles, matrix);
+            return triangles.Select(vert => ApplyTransformMatrix(vert, matrix)).ToList();
+        }
+
+        private static Vertex ApplyTransformMatrix(Vertex v, Matrix m)
+        {
+            return new Vertex
+            {
+                // I *believe* keeping them as shorts is the correct behavior. I may be wrong though.
+                x = (short)(v.x * m[0] + v.y * m[4] + v.z * m[8] + m[12]),
+                y = (short)(v.x * m[1] + v.y * m[5] + v.z * m[9] + m[13]),
+                z = (short)(v.x * m[2] + v.y * m[6] + v.z * m[10] + m[14]),
+                index = v.index,
+                unk1 = v.unk1,
+                unk2 = v.unk2,
+                colorR = v.colorR,
+                colorG = v.colorG,
+                colorB = v.colorB,
+                colorA = v.colorA,
+            };
         }
     }
 }

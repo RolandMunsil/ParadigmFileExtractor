@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
 namespace ParadigmFileExtractor.Filesystem
 {
     class Filesystem
@@ -11,11 +12,11 @@ namespace ParadigmFileExtractor.Filesystem
         public class File
         {
             public string fileTypeFromFileTable;
-            public string fileTypeFromFileHeader;
+            public string? fileTypeFromFileHeader;
             public byte[] bytes;
             public int formLocationInROM;
 
-            public File(string fileTypeFromFileTable, string fileTypeFromFileHeader, byte[] bytes, int formLocationInROM)
+            public File(string fileTypeFromFileTable, string? fileTypeFromFileHeader, byte[] bytes, int formLocationInROM)
             {
                 this.fileTypeFromFileTable = fileTypeFromFileTable;
                 this.fileTypeFromFileHeader = fileTypeFromFileHeader;
@@ -30,6 +31,16 @@ namespace ParadigmFileExtractor.Filesystem
                     return FormUnpacker.ExtractFileSections(bytes);
                 }
             }
+
+            public byte[] Section(string sectionType)
+            {
+                return Sections.Single(tuple => tuple.Item1 == sectionType).Item2;
+            }
+
+            public List<byte[]> SectionsOfType(string sectionType)
+            {
+                return Sections.Where(tup => tup.Item1 == sectionType).Select(tup => tup.Item2).ToList();
+            }
         }
 
         public ICollection<File> AllFiles => filesByLocation.Values;
@@ -42,7 +53,7 @@ namespace ParadigmFileExtractor.Filesystem
 
         public Filesystem(byte[] romBytes)
         {
-            FileTable = FileTable.Get(romBytes);
+            FileTable = new FileTable(romBytes);
 
             filesByLocation = new Dictionary<int, File>();
             foreach(File file in GetAllFiles(FileTable, romBytes))
@@ -55,7 +66,7 @@ namespace ParadigmFileExtractor.Filesystem
             EndLocationInROM = lastFile.formLocationInROM + 8 + lastFile.bytes.Length;
         }
 
-        public File GetFile(string fileType, int index)
+        public File? GetFile(string fileType, int index)
         {
             int loc = FileTable.GetFileLocationByIndex(fileType, index);
             return loc == -1 ? null : filesByLocation[loc];
@@ -78,7 +89,7 @@ namespace ParadigmFileExtractor.Filesystem
                 }
 
                 byte[] data;
-                string magicWordInFileHeader;
+                string? magicWordInFileHeader;
 
                 if (magicWordInFileTable == "UVRW" && romBytes.ReadMagicWord(formPtr) != "FORM")
                 {

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+#nullable enable
 namespace ParadigmFileExtractor.Filesystem
 {
     public class FileTable
@@ -21,7 +22,7 @@ namespace ParadigmFileExtractor.Filesystem
         public byte[] RawTableBytes { get; private set; }
 
         // only valid if type = FlightGame
-        public byte[] DecompressedTableBytes { get; private set; }
+        public byte[]? DecompressedTableBytes { get; private set; }
 
         private Dictionary<string, List<int>> magicWordToFileLocations;
 
@@ -43,18 +44,14 @@ namespace ParadigmFileExtractor.Filesystem
         }
 
 
-
-        public static FileTable Get(byte[] rom)
-        {
-            return new FileTable(rom);
-        }
-
-        private FileTable(byte[] rom)
+        public FileTable(byte[] rom)
         {
             (FormEntryLocation, Type) = SearchForFileTable(rom);
 
             int fileTableLength = rom.ReadInt32(FormEntryLocation + 4);
             RawTableBytes = rom.Subsection(FormEntryLocation + 8, fileTableLength);
+
+            magicWordToFileLocations = new Dictionary<string, List<int>>();
             ParseFileTable();
         }
 
@@ -76,8 +73,6 @@ namespace ParadigmFileExtractor.Filesystem
 
         private void ParseFileTable()
         {
-            magicWordToFileLocations = new Dictionary<string, List<int>>();
-
             Action<string, int> addToDict = (magicWord, location) =>
             {
                 if (!magicWordToFileLocations.ContainsKey(magicWord))

@@ -61,7 +61,7 @@
     <Compile Include="UVBT\UVBTConverter.cs" />
     <Compile Include="UVMD\UVMDDisplayer.cs" />
     <Compile Include="UVMD\UVMDFile.cs" />
-    <Compile Include="UVMD\Window.cs" />
+    <Compile Include="UVMD\UVMDDisplayWindow.cs" />
     <Compile Include="UVTX\UVTXConverter.cs" />
     <Compile Include="UVTX\UVTXFile.cs" />
   </ItemGroup>
@@ -69,6 +69,7 @@
     <None Include="App.config" />
     <None Include="OpenTK.dll.config" />
     <None Include="packages.config" />
+    <Compile Include="UVFT\UVFTConverter.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

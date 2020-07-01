@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 using static ParadigmFileExtractor.Common.Texels;
 
+#nullable enable
 namespace ParadigmFileExtractor.UVBT
 {
     class UVBTConverter

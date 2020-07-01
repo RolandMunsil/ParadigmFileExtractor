@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 #nullable enable
 namespace ParadigmFileExtractor.Common
 {
-    public class Texels
+    public static class Texels
     {
         public enum ColorFormat
         {
@@ -42,6 +42,17 @@ namespace ParadigmFileExtractor.Common
                 case BitSize._32: return 4;
                 default: throw new Exception();
             }
+        }
+
+        public static int GetNumBytes(this int numTexels, BitSize bitSize)
+        {
+            float numBytesFloat = numTexels * BitSizeToNumBytesFloat(bitSize);
+            int numBytes = (int)numBytesFloat;
+            if((float)numBytes != numBytesFloat)
+            {
+                throw new Exception("Non-integer number of bytes for the given number of texels");
+            }
+            return numBytes;
         }
 
         public static float BitSizeToNumBytesFloat(BitSize bitSize)
@@ -138,6 +149,7 @@ namespace ParadigmFileExtractor.Common
             }
             return bmp;
         }
+
         public static Color GetTexel(byte[] line, int texelX, ColorFormat format, BitSize bitSize)
         {
             ulong texel;
