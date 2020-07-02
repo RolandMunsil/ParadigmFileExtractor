@@ -68,7 +68,11 @@ namespace ParadigmFileExtractor.UVMD
         {
             float[] elements;
 
-            public float this[int i] => elements[i];
+            public float this[int index]
+            {
+                get => elements[index];
+                set => elements[index] = value;
+            }
 
             public Matrix(float[] elements)
             {

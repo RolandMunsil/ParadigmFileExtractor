@@ -58,6 +58,7 @@
     <Compile Include="Filesystem\MIO0.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util\PowerByteArray.cs" />
     <Compile Include="UVBT\UVBTConverter.cs" />
     <Compile Include="UVMD\UVMDDisplayer.cs" />
     <Compile Include="UVMD\UVMDFile.cs" />
@@ -70,6 +71,7 @@
     <None Include="OpenTK.dll.config" />
     <None Include="packages.config" />
     <Compile Include="UVFT\UVFTConverter.cs" />
+    <Compile Include="UVTR\UVTRParser.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
