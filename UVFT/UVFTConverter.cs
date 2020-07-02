@@ -66,25 +66,25 @@ namespace ParadigmFileExtractor.UVFT
                     .ToArray();
 
                 // First, save off the main images
-                for (int i = 0; i < imageDatas.Count; i++)
-                {
-                    byte[] imageData = imageDatas[i];
-                    IEnumerable<CharacterDescriptor> relevantChars = characterDescriptors.Where(c => c.sourceIMAGIndex == i);
-                    int texelsPerLine = relevantChars.First().sourceIMAGTexelsPerLine;
-                    if(relevantChars.Any(c => c.sourceIMAGTexelsPerLine != texelsPerLine))
-                    {
-                        throw new Exception("Inconsistent texels per line in BITM section!");
-                    }
-                    int imagHeightTexels = relevantChars.Max(c => c.heightTexels);
-                    int bytesPerLine = Texels.GetNumBytes(texelsPerLine, bitSize);
+                //for (int i = 0; i < imageDatas.Count; i++)
+                //{
+                //    byte[] imageData = imageDatas[i];
+                //    IEnumerable<CharacterDescriptor> relevantChars = characterDescriptors.Where(c => c.sourceIMAGIndex == i);
+                //    int texelsPerLine = relevantChars.First().sourceIMAGTexelsPerLine;
+                //    if(relevantChars.Any(c => c.sourceIMAGTexelsPerLine != texelsPerLine))
+                //    {
+                //        throw new Exception("Inconsistent texels per line in BITM section!");
+                //    }
+                //    int imagHeightTexels = relevantChars.Max(c => c.heightTexels);
+                //    int bytesPerLine = Texels.GetNumBytes(texelsPerLine, bitSize);
 
-                    Bitmap bitmap = Texels.ConvertToBitmap(imageData, colorFormat, bitSize, texelsPerLine, imagHeightTexels, bytesPerLine, false, false, null);
-                    bitmap.Save($"{outputSubfolder}{i+1}.png");
-                }
+                //    Bitmap bitmap = Texels.ConvertToBitmap(imageData, colorFormat, bitSize, texelsPerLine, imagHeightTexels, bytesPerLine, false, false, null);
+                //    bitmap.Save($"{outputSubfolder}{i+1}.png");
+                //}
 
                 // Now save each of the characters
-                string individualCharsDirectory = $"{outputSubfolder}Individual Characters/";
-                Directory.CreateDirectory(individualCharsDirectory);
+                //string individualCharsDirectory = $"{outputSubfolder}Individual Characters/";
+                //Directory.CreateDirectory(individualCharsDirectory);
                 foreach(CharacterDescriptor charDesc in characterDescriptors)
                 {
                     byte[] sourceIMAG = imageDatas[charDesc.sourceIMAGIndex];
@@ -109,7 +109,7 @@ namespace ParadigmFileExtractor.UVFT
                         filename += $" ({ascii})";
                     }
 
-                    bitmap.Save($"{individualCharsDirectory}{filename}.png");
+                    bitmap.Save($"{outputSubfolder}{filename}.png");
                 }
                 Console.WriteLine($"Converted font at {file.formLocationInROM:x6}");
             }
