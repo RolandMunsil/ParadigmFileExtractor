@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static ParadigmFileExtractor.Common.ThreeD;
 using static ParadigmFileExtractor.UVMD.UVMDFile;
 
 namespace ParadigmFileExtractor.UVTR
@@ -60,6 +61,7 @@ namespace ParadigmFileExtractor.UVTR
                 uvtr.h_f2 = data.NextFloat();
                 uvtr.h_f3 = data.NextFloat();
 
+                Console.WriteLine(uvtr.h_b1 * uvtr.h_b2);
                 uvtr.pB1xB2Mem = new UVTR140Struct[uvtr.h_b1 * uvtr.h_b2];
                 for(int i = 0; i < uvtr.pB1xB2Mem.Length; i++)
                 {
@@ -83,6 +85,7 @@ namespace ParadigmFileExtractor.UVTR
 
                     oneFourty.uvctFileIndex = data.NextU16();
                     var uvct = filesystem.GetFile("UVCT", oneFourty.uvctFileIndex);
+                    Console.WriteLine($"{uvct.formLocationInROM:x6}");
 
                     /* oneFourty.pUVCT = processed filesystem.GetFile("UVCT", oneFourty.uvctFileIndex); */
 

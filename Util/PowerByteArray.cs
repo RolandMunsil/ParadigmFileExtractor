@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ParadigmFileExtractor.Util
 {
-    class PowerByteArray: IList<byte>
+    public class PowerByteArray: IList<byte>
     {
         public int Position { get; set; }
         byte[] bytes;
@@ -179,6 +179,11 @@ namespace ParadigmFileExtractor.Util
         public string PrettyPrint()
         {
             return String.Join(" ", bytes.Select(b => b.ToString("X2")));
+        }
+
+        public override string ToString()
+        {
+            return PrettyPrint();
         }
 
         #region Basic Reimplimentation of Array & IList methods

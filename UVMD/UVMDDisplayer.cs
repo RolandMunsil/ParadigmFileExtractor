@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ParadigmFileExtractor.Util;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +16,7 @@ namespace ParadigmFileExtractor.UVMD
 
             foreach (Filesystem.Filesystem.File file in filesystem.AllFiles.Where(file => file.fileTypeFromFileHeader == "UVMD"))
             {
-                UVMDFile uvmd = new UVMDFile(file.Sections.Single().Item2, filesystem);
+                UVMDFile uvmd = new UVMDFile(new PowerByteArray(file.Sections.Single().Item2), filesystem);
             }
         }
     }

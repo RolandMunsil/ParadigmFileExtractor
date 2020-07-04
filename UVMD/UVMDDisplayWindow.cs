@@ -18,7 +18,7 @@ namespace ParadigmFileExtractor.UVMD
     {
         [Serializable]
         [StructLayout(LayoutKind.Sequential)]
-        struct Vertex
+        private struct OpenGLVertex
         {
             public Vector3 position;
             public Vector3 normal;
@@ -33,7 +33,7 @@ namespace ParadigmFileExtractor.UVMD
             }
         }
 
-        private readonly Vertex[] vertexData;
+        private readonly OpenGLVertex[] vertexData;
 
         private int vertexBufferObjectHandle;
         private int vertexArrayObjectHandle;
@@ -78,14 +78,14 @@ void main()
 
         private float modelSize;
 
-        public UVMDDisplayWindow(int width, int height, IList<UVMDFile.Vertex> uvmdVertices)
+        public UVMDDisplayWindow(int width, int height, IList<Common.ThreeD.Vertex> uvmdVertices)
             : base(width, height, GraphicsMode.Default, "")
         {
             startTimeTicks = DateTime.Now.Ticks;
 
-            List<Vertex> vertexDataList = UVMDVerticesToWindowVertices(uvmdVertices);
+            List<OpenGLVertex> vertexDataList = UVMDVerticesToWindowVertices(uvmdVertices);
 
-            foreach (Vertex vert in vertexDataList)
+            foreach (OpenGLVertex vert in vertexDataList)
             {
                 modelSize = Math.Max(modelSize, vert.position.Length);
             }
@@ -95,14 +95,14 @@ void main()
 
 
 
-        private static List<Vertex> UVMDVerticesToWindowVertices(IList<UVMDFile.Vertex> vertices)
+        private static List<OpenGLVertex> UVMDVerticesToWindowVertices(IList<Common.ThreeD.Vertex> vertices)
         {
-            List<Vertex> vertexDataList = new List<Vertex>();
+            List<OpenGLVertex> vertexDataList = new List<OpenGLVertex>();
             for (int i = 0; i < vertices.Count; i += 3)
             {
-                UVMDFile.Vertex v1 = vertices[i + 0];
-                UVMDFile.Vertex v2 = vertices[i + 1];
-                UVMDFile.Vertex v3 = vertices[i + 2];
+                Common.ThreeD.Vertex v1 = vertices[i + 0];
+                Common.ThreeD.Vertex v2 = vertices[i + 1];
+                Common.ThreeD.Vertex v3 = vertices[i + 2];
 
                 Vector3 p1 = new Vector3(v1.x, v1.y, v1.z);
                 Vector3 p2 = new Vector3(v2.x, v2.y, v2.z);
@@ -112,21 +112,21 @@ void main()
                 Vector4 p3Color = new Vector4(v3.colorR, v3.colorG, v3.colorB, v3.colorA) / 0xFF;
                 Vector3 normal = Vector3.Cross(p2 - p1, p3 - p1).Normalized();
 
-                vertexDataList.Add(new Vertex
+                vertexDataList.Add(new OpenGLVertex
                 {
                     position = p1,
                     normal = normal,
                     color = p1Color
                 });
 
-                vertexDataList.Add(new Vertex
+                vertexDataList.Add(new OpenGLVertex
                 {
                     position = p2,
                     normal = normal,
                     color = p2Color
                 });
 
-                vertexDataList.Add(new Vertex
+                vertexDataList.Add(new OpenGLVertex
                 {
                     position = p3,
                     normal = normal,
@@ -145,7 +145,7 @@ void main()
 
             vertexBufferObjectHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferObjectHandle);
-            GL.BufferData(BufferTarget.ArrayBuffer, vertexData.Length * Vertex.Size, vertexData, BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexData.Length * OpenGLVertex.Size, vertexData, BufferUsageHint.StaticDraw);
 
             shader = new Shader(vertShader, fragShader);
             shader.Use();
@@ -156,16 +156,16 @@ void main()
             int positionLocation = GL.GetAttribLocation(shader.handle, "position");
             GL.EnableVertexAttribArray(positionLocation);
             // Remember to change the stride as we now have 6 floats per vertex
-            GL.VertexAttribPointer(positionLocation, 3, VertexAttribPointerType.Float, false, Vertex.Size, 0);
+            GL.VertexAttribPointer(positionLocation, 3, VertexAttribPointerType.Float, false, OpenGLVertex.Size, 0);
 
             // We now need to define the layout of the normal so the shader can use it
             int normalLocation = GL.GetAttribLocation(shader.handle, "inNormal");
             GL.EnableVertexAttribArray(normalLocation);
-            GL.VertexAttribPointer(normalLocation, 3, VertexAttribPointerType.Float, false, Vertex.Size, 3 * sizeof(float));
+            GL.VertexAttribPointer(normalLocation, 3, VertexAttribPointerType.Float, false, OpenGLVertex.Size, 3 * sizeof(float));
 
             int colorLocation = GL.GetAttribLocation(shader.handle, "inColor");
             GL.EnableVertexAttribArray(colorLocation);
-            GL.VertexAttribPointer(colorLocation, 4, VertexAttribPointerType.Float, false, Vertex.Size, 6 * sizeof(float));
+            GL.VertexAttribPointer(colorLocation, 4, VertexAttribPointerType.Float, false, OpenGLVertex.Size, 6 * sizeof(float));
 
 
 
@@ -312,6 +312,7 @@ void main()
             }
         }
 
+        // https://opentk.net/learn/chapter1/4-textures.html
         private class Texture
         {
             int handle;
