@@ -1,4 +1,6 @@
-﻿using ParadigmFileExtractor.Util;
+﻿using ParadigmFileExtractor.Common;
+using ParadigmFileExtractor.Util;
+using ParadigmFileExtractor.UVCT;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -61,39 +63,47 @@ namespace ParadigmFileExtractor.UVTR
                 uvtr.h_f2 = data.NextFloat();
                 uvtr.h_f3 = data.NextFloat();
 
-                Console.WriteLine(uvtr.h_b1 * uvtr.h_b2);
-                uvtr.pB1xB2Mem = new UVTR140Struct[uvtr.h_b1 * uvtr.h_b2];
-                for(int i = 0; i < uvtr.pB1xB2Mem.Length; i++)
+                using (ThreeDDisplayWindow window = new ThreeDDisplayWindow())
                 {
-                    UVTR140Struct oneFourty = new UVTR140Struct();
-                    if(data.NextU8() == 0)
+                    Console.WriteLine(uvtr.h_b1 * uvtr.h_b2);
+                    uvtr.pB1xB2Mem = new UVTR140Struct[uvtr.h_b1 * uvtr.h_b2];
+                    for (int i = 0; i < uvtr.pB1xB2Mem.Length; i++)
                     {
-                        continue;
+                        UVTR140Struct oneFourty = new UVTR140Struct();
+                        if (data.NextU8() == 0)
+                        {
+                            continue;
+                        }
+                        oneFourty.m1 = new Matrix(data.NextSubArray(64).AsFloats());
+                        byte unkByte = data.NextU8();
+
+                        // m2 = identity matrix
+                        oneFourty.m2 = new Matrix(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
+
+                        // Copy translation from m1 to m2
+                        oneFourty.m2[12] = oneFourty.m1[12];
+                        oneFourty.m2[13] = oneFourty.m1[13];
+                        oneFourty.m2[14] = oneFourty.m1[14];
+
+                        /* FUN_801360cc(m2, m2) */
+                        Console.WriteLine(oneFourty.m1);
+                        oneFourty.uvctFileIndex = data.NextU16();
+                        var uvct = filesystem.GetFile("UVCT", oneFourty.uvctFileIndex);
+                        Console.WriteLine($"{uvct.formLocationInROM:x6}");
+                        var uvctFile = new UVCTFile(new PowerByteArray(uvct.Section("COMM")), filesystem);
+                        uvctFile.AddToWindow(window, oneFourty.m1);
+
+
+                        /* oneFourty.pUVCT = processed filesystem.GetFile("UVCT", oneFourty.uvctFileIndex); */
+
+                        /* if uvct does not exist, set oneFourty.unkFloat to 0 and move to next loop*/
+
+                        /* at this point some stuff happens with the UVCT, idk what exactly */
+
+                        uvtr.pB1xB2Mem[i] = oneFourty;
                     }
-                    oneFourty.m1 = new Matrix(data.NextSubArray(64).AsFloats());
-                    byte unkByte = data.NextU8();
 
-                    // m2 = identity matrix
-                    oneFourty.m2 = new Matrix(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 });
-
-                    // Copy translation from m1 to m2
-                    oneFourty.m2[12] = oneFourty.m1[12];
-                    oneFourty.m2[13] = oneFourty.m1[13];
-                    oneFourty.m2[14] = oneFourty.m1[14];
-
-                    /* FUN_801360cc(m2, m2) */
-
-                    oneFourty.uvctFileIndex = data.NextU16();
-                    var uvct = filesystem.GetFile("UVCT", oneFourty.uvctFileIndex);
-                    Console.WriteLine($"{uvct.formLocationInROM:x6}");
-
-                    /* oneFourty.pUVCT = processed filesystem.GetFile("UVCT", oneFourty.uvctFileIndex); */
-
-                    /* if uvct does not exist, set oneFourty.unkFloat to 0 and move to next loop*/
-
-                    /* at this point some stuff happens with the UVCT, idk what exactly */
-
-                    uvtr.pB1xB2Mem[i] = oneFourty;
+                    window.Run();
                 }
 
                 uvtr.ushort1 = data.NextU16();
