@@ -1,5 +1,6 @@
 ﻿using ParadigmFileExtractor.Common;
 using ParadigmFileExtractor.Util;
+using ParadigmFileExtractor.UVTX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,51 +88,57 @@ namespace ParadigmFileExtractor.UVCT
 
             /* allocate h_sh4 * 60 */
 
-            var allTris = new List<ThreeD.Vertex>();
-
-            for (int i = 0; i < h_sh4; i++)
+            using (ThreeDDisplayWindow window = new ThreeDDisplayWindow())
             {
-                uint d = data.NextU32();
-                data.NextU32();
-                data.NextU32();
-                data.NextU32();
-                ushort a = data.NextU16();
-                data.NextU16();
-                data.NextU16();
-                data.NextU16();
-
-                Filesystem.Filesystem.File uvtx;
-                if ((d & 0xFFF) != 0xFFF)
-                    uvtx = filesystem.GetFile("UVTX", (int)(d & 0xFFF));
-
-                ushort numTriShorts = data.NextU16();
-                ushort numCommands = data.NextU16();
-
-                ThreeD.Vertex[] x = data.NextSubArray(a * 16).InGroupsOf(16).Select(d => new ThreeD.Vertex(d)).ToArray();
-
-                var cmds = ThreeD.UnpackTriangleCommands(data, numTriShorts, numCommands);
-
-                //if (cmds.Length > 10)
+                for (int i = 0; i < h_sh4; i++)
                 {
-                    // not sure if identity is correct
-                    var tris = ThreeD.MaterialToVertexData(x, cmds, ThreeD.Matrix.Identity);
-                    allTris.AddRange(tris);
+                    uint d = data.NextU32();
+                    data.NextU32();
+                    data.NextU32();
+                    data.NextU32();
+                    ushort a = data.NextU16();
+                    data.NextU16();
+                    data.NextU16();
+                    data.NextU16();
 
+                    Filesystem.Filesystem.File uvtx = null;
+                    //UVTXConverter.RDPState rdpState;
+                    if ((d & 0xFFF) != 0xFFF)
+                    {
+                        uvtx = filesystem.GetFile("UVTX", (int)(d & 0xFFF));
+                        //rdpState = UVTXConverter.ExecuteCommands(new UVTXFile(uvtx.Section("COMM")), out _);
+                    }
+
+                    ushort numTriShorts = data.NextU16();
+                    ushort numCommands = data.NextU16();
+
+                    ThreeD.Vertex[] x = data.NextSubArray(a * 16).InGroupsOf(16).Select(d => new ThreeD.Vertex(d)).ToArray();
+
+                    var cmds = ThreeD.UnpackTriangleCommands(data, numTriShorts, numCommands);
+
+                    if (h_sh4 > 16)
+                    {
+                        // not sure if identity is correct
+                        var tris = ThreeD.MaterialToVertexData(x, cmds, ThreeD.Matrix.Identity);
+                        if (uvtx == null)
+                            window.AddVertices(tris);
+                        else
+                            window.AddTexturedVertices(tris, new UVTXFile(uvtx.Section("COMM")));
+
+                    }
+
+                    data.NextU16();
+                    data.NextU16();
+                    data.NextU16();
+                    data.NextU16();
+                    data.NextU32();
+                    data.NextU32();
+                    data.NextU32();
+                    data.NextU32();
                 }
 
-                data.NextU16();
-                data.NextU16();
-                data.NextU16();
-                data.NextU16();
-                data.NextU32();
-                data.NextU32();
-                data.NextU32();
-                data.NextU32();
-            }
-
-            using (UVMD.UVMDDisplayWindow window = new UVMD.UVMDDisplayWindow(800, 600, allTris))
-            {
-                window.Run(60.0);
+                if (h_sh4 > 16)
+                    window.Run();
             }
 
             unk4_1 = data.NextU32();

@@ -65,7 +65,7 @@
     <Compile Include="UVCT\UVCTParser.cs" />
     <Compile Include="UVMD\UVMDDisplayer.cs" />
     <Compile Include="UVMD\UVMDFile.cs" />
-    <Compile Include="UVMD\UVMDDisplayWindow.cs" />
+    <Compile Include="Common\ThreeDDisplayWindow.cs" />
     <Compile Include="UVTX\UVTXConverter.cs" />
     <Compile Include="UVTX\UVTXFile.cs" />
   </ItemGroup>

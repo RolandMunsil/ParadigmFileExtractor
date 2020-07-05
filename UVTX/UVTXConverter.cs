@@ -36,7 +36,7 @@ namespace ParadigmFileExtractor.UVTX
                 fileStringBuilder.AppendLine($"{outputFileName} ({uvtx.texelData.Length} data | {uvtx.displayListCommands.Length} cmds | {uvtx.palettes.Length} palettes)");
                 fileStringBuilder.AppendLine($"(footer) size <{uvtx.imageWidth}, {uvtx.imageHeight}> | {uvtx.mipMapCount} mm |");
 
-                string? cmdString = ConvertToPNG(uvtx, fullOutputPath + outputFileName);
+                string? cmdString = SaveAsPNG(uvtx, fullOutputPath + outputFileName);
 
                 if (cmdString == null)
                 {
@@ -50,7 +50,7 @@ namespace ParadigmFileExtractor.UVTX
             }
         }
 
-        class TileDescriptor
+        public class TileDescriptor
         {
             public ColorFormat format;
             public BitSize bitSize;
@@ -74,7 +74,7 @@ namespace ParadigmFileExtractor.UVTX
             public float sLo, tLo, sHi, tHi;
         }
 
-        class ColorCombinerSettings
+        public class ColorCombinerSettings
         {
             public byte primR;
             public byte primG;
@@ -91,7 +91,7 @@ namespace ParadigmFileExtractor.UVTX
             public float LODfrac;
         }
 
-        enum Fast3DEX2Opcode
+        public enum Fast3DEX2Opcode
         {
             G_TEXTURE = 0xD7,
             G_ENDDL = 0xDF,
@@ -124,24 +124,60 @@ namespace ParadigmFileExtractor.UVTX
             { 23, "G_MDSFT_PIPELINE" }
         };
 
-        static string? ConvertToPNG(UVTXFile uvtx, string filePathWithoutExtension)
+        public class RDPState
         {
-            byte[] tmem = new byte[4096];
-            TileDescriptor[] tileDescriptors = new TileDescriptor[8];
-            ColorCombinerSettings colorCombinerSettings = new ColorCombinerSettings();
-            bool texturingEnabled = false;
-            byte tileToUseWhenTexturing = 0xFF;
-            byte maxMipMapLevels = 0xFF;
-            float textureScaleS = -1;
-            float textureScaleT = -1;
+            // Note: Idk if this is exactly how things are stored in the RDP, this
+            // is just based on reading the docs
+            public byte[] tmem = new byte[4096];
+            public TileDescriptor[] tileDescriptors = new TileDescriptor[8];
+            public ColorCombinerSettings colorCombinerSettings = new ColorCombinerSettings();
+            public bool texturingEnabled = false;
+            public byte tileToUseWhenTexturing = 0xFF;
+            public byte maxMipMapLevels = 0xFF;
+            public float textureScaleS = -1;
+            public float textureScaleT = -1;
+            public uint? nextDRAMAddrForLoad = null;
+            public BitSize? bitSizeOfNextDataForLoad = null;
+        }
 
-            uint? nextDRAMAddrForLoad = null;
-            BitSize? bitSizeOfNextDataForLoad = null;
+        static string? SaveAsPNG(UVTXFile uvtx, string filePathWithoutExtension)
+        {
 
-            StringBuilder cmdsString = new StringBuilder();
+            StringBuilder cmdsString;
+            RDPState rdpState = ExecuteCommands(uvtx, out cmdsString);
 
-            HashSet<int> tilesWhereSetTileSizeWasCalled = new HashSet<int>();
+            // Some don't have a setTileSize, use the size from the uvtx footer
+            TileDescriptor tileToBeDrawn = rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing];
+            if (tileToBeDrawn.sLo == 0 && tileToBeDrawn.tLo == 0 && tileToBeDrawn.tHi == 0)
+            {
+                rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing].sLo = 0.5f;
+                rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing].tLo = 0.5f;
+                rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing].sHi = uvtx.imageWidth - 0.5f;
+                rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing].tHi = uvtx.imageHeight - 0.5f;
+            }
 
+            // TODO: support Color Combiner? https://wiki.cloudmodding.com/oot/F3DZEX/Opcode_Details#0xFC_.E2.80.94_G_SETCOMBINE https://wiki.cloudmodding.com/oot/F3DZEX#Color_Combiner_Settings
+            // TODO: save mipmaps?
+
+            // NOTE: some files without mipmaps define more than just the normal two tiles (i.e. 7 for load, 1 for actual tile)
+            // It looks like all of these just define Tile 2, and none of their Tile 2s seem to contain meaningful image data
+            // in fact I think it's just referencing the same data as Tile 1 but starting from a different location and maybe
+            // in a different format.
+            // It seems like all of them set G_MDSFT_CYCLETYPE to 01 (which is otherwise mostly only done for textures with mipmaps)
+            // so I *assume* this is some trick needed for a complex effect (since 01 is "2 cycles per pixel" mode) 
+
+            // Save tile, ignore mipmaps
+            string filePath = filePathWithoutExtension + "-" + rdpState.tileToUseWhenTexturing + ".png";
+            ConvertTileToBitmap(rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing], rdpState.tmem, uvtx.palettes).Save(filePath);
+            return cmdsString.ToString();
+        }
+
+        //TODO: implement G_SetOtherMode_H, *maybe* G_SETCOMBINE
+        public static RDPState ExecuteCommands(UVTXFile uvtx, out StringBuilder cmdsString)
+        {
+            RDPState rdpState = new RDPState();
+
+            cmdsString = new StringBuilder();
             foreach (byte[] commandBytes in uvtx.displayListCommands)
             {
                 byte[] bytes = commandBytes;
@@ -159,11 +195,11 @@ namespace ParadigmFileExtractor.UVTX
                             float scaleFactorS = bytes.ReadUInt16(4) / (float)0x10000;
                             float scaleFactorT = bytes.ReadUInt16(6) / (float)0x10000;
 
-                            tileToUseWhenTexturing = tileDescIndex;
-                            maxMipMapLevels = mipMap;
-                            texturingEnabled = on;
-                            textureScaleS = scaleFactorS;
-                            textureScaleT = scaleFactorT;
+                            rdpState.tileToUseWhenTexturing = tileDescIndex;
+                            rdpState.maxMipMapLevels = mipMap;
+                            rdpState.texturingEnabled = on;
+                            rdpState.textureScaleS = scaleFactorS;
+                            rdpState.textureScaleT = scaleFactorT;
 
                             operationDesc = "G_TEXTURE        (Set RSP texture state)";
                             operationDesc += $": tile {tileDescIndex} scale=<{scaleFactorS}, {scaleFactorT}>; mm={mipMap} on={on}";
@@ -197,7 +233,7 @@ namespace ParadigmFileExtractor.UVTX
                             ushort sHiRaw = (ushort)word.Bits(12, 12);
                             ushort tHiRaw = (ushort)word.Bits(0, 12);
 
-                            TileDescriptor t = tileDescriptors[tileDescIndex];
+                            TileDescriptor t = rdpState.tileDescriptors[tileDescIndex];
                             t.sLo = sLoRaw / 4.0f;
                             t.tLo = tLoRaw / 4.0f;
                             t.sHi = sHiRaw / 4.0f;
@@ -208,8 +244,6 @@ namespace ParadigmFileExtractor.UVTX
 
                             operationDesc = "G_SETTILESIZE    (Set texture coords and size)";
                             operationDesc += $": tile {tileDescIndex} lo=({t.sLo}, {t.tLo}) hi=({t.sHi}, {t.tHi}) [[{visWidth}, {visHeight}]]";
-
-                            tilesWhereSetTileSizeWasCalled.Add(tileDescIndex);
                             break;
                         }
                     case Fast3DEX2Opcode.G_LOADBLOCK:
@@ -232,20 +266,20 @@ namespace ParadigmFileExtractor.UVTX
                                 throw new Exception();
                             }
 
-                            if (nextDRAMAddrForLoad == null || bitSizeOfNextDataForLoad == null)
+                            if (rdpState.nextDRAMAddrForLoad == null || rdpState.bitSizeOfNextDataForLoad == null)
                             {
                                 throw new Exception();
                             }
 
-                            tileDescriptors[tileDescIndex].sLo = sLo;
-                            tileDescriptors[tileDescIndex].tLo = tLo;
-                            tileDescriptors[tileDescIndex].sHi = sHi;
-                            tileDescriptors[tileDescIndex].tHi = dxt; // Not 100% sure this is the correct behavior
+                            rdpState.tileDescriptors[tileDescIndex].sLo = sLo;
+                            rdpState.tileDescriptors[tileDescIndex].tLo = tLo;
+                            rdpState.tileDescriptors[tileDescIndex].sHi = sHi;
+                            rdpState.tileDescriptors[tileDescIndex].tHi = dxt; // Not 100% sure this is the correct behavior
 
 
-                            int dataStart = (int)nextDRAMAddrForLoad;
-                            int dataLengthBytes = (sHi + 1) * Texels.BitSizeToNumBytes((BitSize)bitSizeOfNextDataForLoad);
-                            int destPtr = tileDescriptors[tileDescIndex].tmemAddressInWords * 8;
+                            int dataStart = (int)rdpState.nextDRAMAddrForLoad;
+                            int dataLengthBytes = (sHi + 1) * Texels.BitSizeToNumBytes((BitSize)rdpState.bitSizeOfNextDataForLoad);
+                            int destPtr = rdpState.tileDescriptors[tileDescIndex].tmemAddressInWords * 8;
 
                             // I'm assuming this is the correct behavior because if I don't do this a lot of textures have a notch at the top right
                             // (Also it would make sense given that interleaving and addresses are all done on 64-bit words
@@ -253,7 +287,7 @@ namespace ParadigmFileExtractor.UVTX
 
                             // Note: technically this inaccurate, we shouldn't clamp. But the instructions read beyond the file and IDK why,
                             // it doesn't seem to serve any purpose so I assume it's a bug (or I don't understand something about how the RSP works)
-                            Array.Copy(uvtx.texelData, dataStart, tmem, destPtr, Math.Min(uvtx.texelData.Length - dataStart, dataLengthBytes));
+                            Array.Copy(uvtx.texelData, dataStart, rdpState.tmem, destPtr, Math.Min(uvtx.texelData.Length - dataStart, dataLengthBytes));
 
                             operationDesc = "G_LOADBLOCK      (Load data into TMEM (uses params set in SETTIMG))";
                             operationDesc += $": tile {tileDescIndex} sLo={sLo} tLo={tLo} sHi={sHi} dxt={dxt}";
@@ -279,7 +313,7 @@ namespace ParadigmFileExtractor.UVTX
                                 shiftS = (byte)word.Bits(0, 4),
                             };
                             byte tileDescIndex = (byte)word.Bits(24, 3);
-                            tileDescriptors[tileDescIndex] = t;
+                            rdpState.tileDescriptors[tileDescIndex] = t;
 
                             operationDesc = "G_SETTILE        (Set texture properties)";
                             operationDesc += $": tile {tileDescIndex} fmt={t.bitSize}-bit {t.format} wordsPerLine={t.wordsPerLine} addrWords={t.tmemAddressInWords} palette={t.palette}"
@@ -296,12 +330,12 @@ namespace ParadigmFileExtractor.UVTX
                             byte b = bytes[6];
                             byte a = bytes[7];
 
-                            colorCombinerSettings.primR = r;
-                            colorCombinerSettings.primG = g;
-                            colorCombinerSettings.primB = b;
-                            colorCombinerSettings.primA = a;
-                            colorCombinerSettings.minLODLevel = minLODLevel;
-                            colorCombinerSettings.LODfrac = LODfrac;
+                            rdpState.colorCombinerSettings.primR = r;
+                            rdpState.colorCombinerSettings.primG = g;
+                            rdpState.colorCombinerSettings.primB = b;
+                            rdpState.colorCombinerSettings.primA = a;
+                            rdpState.colorCombinerSettings.minLODLevel = minLODLevel;
+                            rdpState.colorCombinerSettings.LODfrac = LODfrac;
 
                             operationDesc = "G_SETPRIMCOLOR   (Set color combiner primitive color + LOD)";
                             operationDesc += $": rgba({r}, {g}, {b}, {a}) minLOD={minLODLevel} LODfrac={LODfrac}";
@@ -314,10 +348,10 @@ namespace ParadigmFileExtractor.UVTX
                             byte b = bytes[6];
                             byte a = bytes[7];
 
-                            colorCombinerSettings.envR = r;
-                            colorCombinerSettings.envG = g;
-                            colorCombinerSettings.envB = b;
-                            colorCombinerSettings.envA = a;
+                            rdpState.colorCombinerSettings.envR = r;
+                            rdpState.colorCombinerSettings.envG = g;
+                            rdpState.colorCombinerSettings.envB = b;
+                            rdpState.colorCombinerSettings.envA = a;
 
                             operationDesc = "G_SETENVCOLOR    (Set color combiner environment color)";
                             operationDesc += $": rgba({r}, {g}, {b}, {a})";
@@ -334,8 +368,8 @@ namespace ParadigmFileExtractor.UVTX
                             BitSize bitSize = (BitSize)word.Bits(51, 2);
                             uint dramAddress = (uint)word.Bits(0, 25);
 
-                            nextDRAMAddrForLoad = dramAddress;
-                            bitSizeOfNextDataForLoad = bitSize;
+                            rdpState.nextDRAMAddrForLoad = dramAddress;
+                            rdpState.bitSizeOfNextDataForLoad = bitSize;
 
                             operationDesc = "G_SETTIMG        (Set pointer to data to load + size of data)";
                             operationDesc += $": DRAM 0x{dramAddress:X8}; fmt={bitSize}-bit {format}";
@@ -359,32 +393,10 @@ namespace ParadigmFileExtractor.UVTX
                 cmdsString.AppendLine(bytesStr + " | " + operationDesc);
             }
 
-            // Some don't have a setTileSize, use the size from the uvtx footer
-            if (!tilesWhereSetTileSizeWasCalled.Contains(tileToUseWhenTexturing))
-            {
-                tileDescriptors[tileToUseWhenTexturing].sLo = 0.5f;
-                tileDescriptors[tileToUseWhenTexturing].tLo = 0.5f;
-                tileDescriptors[tileToUseWhenTexturing].sHi = uvtx.imageWidth - 0.5f;
-                tileDescriptors[tileToUseWhenTexturing].tHi = uvtx.imageHeight - 0.5f;
-            }
-
-            // TODO: support Color Combiner? https://wiki.cloudmodding.com/oot/F3DZEX/Opcode_Details#0xFC_.E2.80.94_G_SETCOMBINE https://wiki.cloudmodding.com/oot/F3DZEX#Color_Combiner_Settings
-            // TODO: save mipmaps?
-
-            // NOTE: some files without mipmaps define more than just the normal two tiles (i.e. 7 for load, 1 for actual tile)
-            // It looks like all of these just define Tile 2, and none of their Tile 2s seem to contain meaningful image data
-            // in fact I think it's just referencing the same data as Tile 1 but starting from a different location and maybe
-            // in a different format.
-            // It seems like all of them set G_MDSFT_CYCLETYPE to 01 (which is otherwise mostly only done for textures with mipmaps)
-            // so I *assume* this is some trick needed for a complex effect (since 01 is "2 cycles per pixel" mode) 
-
-            // Save tile, ignore mipmaps
-            string filePath = filePathWithoutExtension + "-" + tileToUseWhenTexturing + ".png";
-            SaveTile(tileDescriptors[tileToUseWhenTexturing], tmem, uvtx.palettes, filePath);
-            return cmdsString.ToString();
+            return rdpState;
         }
 
-        static void SaveTile(TileDescriptor tileDesc, byte[] tmem, ushort[][] palettes, string filePath)
+        private static Bitmap ConvertTileToBitmap(TileDescriptor tileDesc, byte[] tmem, ushort[][] palettes)
         {
             if (Math.Floor(tileDesc.sHi - tileDesc.sLo) != tileDesc.sHi - tileDesc.sLo)
             {
@@ -404,7 +416,13 @@ namespace ParadigmFileExtractor.UVTX
             byte[] data = tmem.Subsection(startPtrBytes, bytesPerLine * height);
             ushort[]? palette = tileDesc.palette == 0 ? null : palettes[tileDesc.palette - 1];
 
-            Texels.ConvertToBitmap(data, tileDesc.format, tileDesc.bitSize, width, height, bytesPerLine, true, true, palette).Save(filePath);
+            return Texels.ConvertToBitmap(data, tileDesc.format, tileDesc.bitSize, width, height, bytesPerLine, true, true, palette);
+        }
+
+        public static Bitmap GetBitmap(UVTXFile uvtx)
+        {
+            RDPState rdpState = ExecuteCommands(uvtx, out _);
+            return ConvertTileToBitmap(rdpState.tileDescriptors[rdpState.tileToUseWhenTexturing], rdpState.tmem, uvtx.palettes);
         }
     }
 }

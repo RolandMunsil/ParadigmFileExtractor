@@ -39,7 +39,7 @@ namespace ParadigmFileExtractor.Common
 
             public override string ToString()
             {
-                return $"({x}, {y}, {z}) [{index}] {unk1 / (float)0b100000} {unk2 / (float)0b100000} 0x{colorR:X2}{colorG:X2}{colorB:X2}{colorA:X2}";
+                return $"({x}, {y}, {z}) [{index}] {(short)unk1 / (float)0b100000} {(short)unk2 / (float)0b100000} 0x{colorR:X2}{colorG:X2}{colorB:X2}{colorA:X2}";
             }
         }
 

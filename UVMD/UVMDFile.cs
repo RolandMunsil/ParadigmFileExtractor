@@ -1,4 +1,5 @@
-﻿using ParadigmFileExtractor.Util;
+﻿using ParadigmFileExtractor.Common;
+using ParadigmFileExtractor.Util;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -254,30 +255,50 @@ namespace ParadigmFileExtractor.UVMD
 
             ////////////////////////////////
 
-            if (vertexCount > 100)
+            using (ThreeDDisplayWindow window = new ThreeDDisplayWindow())
+            {
                 foreach (LOD lod in pLODs)
                 {
-                    //if (lod.partCount > 1)
-                    //{
-                    List<Vertex> lodData = new List<Vertex>();
+                    bool hadTextured = false;
                     for (int i = 0; i < lod.partCount; i++)
                     {
                         ModelPart part = lod.pModelParts[i];
                         Matrix m = pMatrices[i];
 
-                        lodData.AddRange(part.pMaterials.SelectMany(material => MaterialToVertexData(material.pVertices, material.pCommandsInRDRAM, m)));
+                        foreach(Material material in part.pMaterials)
+                        {
+                            List<Vertex> verts = MaterialToVertexData(material.pVertices, material.pCommandsInRDRAM, m);
+                            uint textureRef = material.unk4 & 0xFFF;
+                            if (textureRef != 0xFFF)
+                            {
+                                Filesystem.Filesystem.File textureFile = filesystem.GetFile("UVTX", (int)textureRef)!;
+                                Console.WriteLine($"{textureFile.formLocationInROM:x6}");
+                                window.AddTexturedVertices(verts, new UVTX.UVTXFile(textureFile.Section("COMM")));
+                                hadTextured = true;
+                            }
+                            else
+                            {
+                                window.AddVertices(verts);
+                            }
+                        }
+
+                        //lodData.AddRange(part.pMaterials.SelectMany(material => MaterialToVertexData(material.pVertices, material.pCommandsInRDRAM, m)));
                     }
-                    DisplayModel(lodData);
-                    //}
+
+                    if(hadTextured)
+                    {
+                        window.Run();
+                    }
                 }
+            }
         }
 
         public static void DisplayModel(List<Vertex> triangles)
         {
-            using (UVMDDisplayWindow window = new UVMDDisplayWindow(800, 600, triangles))
-            {
-                window.Run(60.0);
-            }
+            //using (UVMDDisplayWindow window = new UVMDDisplayWindow(800, 600, triangles))
+            //{
+            //    window.Run(60.0);
+            //}
         }
     }
 }
