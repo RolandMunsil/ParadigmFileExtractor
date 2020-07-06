@@ -105,9 +105,25 @@ void main()
         private long startTimeTicks;
 
         private float modelSize;
+        private Vector3 center;
 
         private List<OpenGLVertex> verticesSoFar;
         private OpenGLVertex[] finalizedVertexArray;
+
+
+
+        float speed = 100f;
+
+        Vector3 position;// = new Vector3(0.0f, 10000.0f, 10000.0f);
+        Vector3 forward;// = new Vector3(0.0f, -1.0f, -1.0f).Normalized();
+        Vector3 up = new Vector3(0.0f, 1.0f, 0.0f);
+
+        bool firstMouseMove;
+        Vector2 totalMouseDelta;
+        float camSensitivity = 0.05f;
+        float camYaw = -90;
+        float camPitch = -45;
+
 
         struct VertexDataSegment
         {
@@ -118,11 +134,13 @@ void main()
 
         private List<VertexDataSegment> segments;
 
-        public ThreeDDisplayWindow() : base(800, 600, GraphicsMode.Default, "")
+        public ThreeDDisplayWindow() : base(1920, 1080, GraphicsMode.Default, "")
         {
             startTimeTicks = DateTime.Now.Ticks;
             verticesSoFar = new List<OpenGLVertex>();
             segments = new List<VertexDataSegment>();
+            CursorVisible = false;
+            CursorGrabbed = true;
         }
 
         public void AddVertices(IList<ThreeD.Vertex> n64Verts)
@@ -157,12 +175,18 @@ void main()
             {
                 modelSize = Math.Max(modelSize, vert.position.Length);
             }
-
+            center = finalizedVertexArray.Select(v => v.position).Aggregate(new Vector3(0), (sum, next) => sum + next) / finalizedVertexArray.Length;
+            position = new Vector3(0, modelSize, modelSize) + center;
+            //forward = new Vector3(0, -1, -1).Normalized();
+            Console.WriteLine(position);
+            Console.WriteLine(forward);
 
 
             // Set clear color
             GL.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             vertexBufferObjectHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferObjectHandle);
@@ -260,9 +284,10 @@ void main()
 
             float secs = (float)(DateTime.Now.Ticks - startTimeTicks) / TimeSpan.TicksPerSecond;
 
-            Matrix4 model = Matrix4.CreateRotationY(secs) * Matrix4.CreateScale(1 / modelSize);
-            Matrix4 view = Matrix4.LookAt(new Vector3(0.0f, 2.0f, -3.0f), new Vector3(0), new Vector3(0, 1, 0));
-            Matrix4 proj = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), Width / (float)Height, 0.1f, 100.0f);
+            //Matrix4 model = Matrix4.CreateRotationY(secs) * Matrix4.CreateScale(1 / modelSize);
+            Matrix4 model = Matrix4.Identity;
+            Matrix4 view = Matrix4.LookAt(position, position + forward, up);
+            Matrix4 proj = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), Width / (float)Height, 10f, 10000.0f);
 
             //GL.PointSize(3.0f);
             foreach (VertexDataSegment segment in segments)
@@ -287,12 +312,19 @@ void main()
                 GL.DrawArrays(PrimitiveType.Triangles, segment.startIndex, segment.length);
             }
 
+            //Console.WriteLine($"{forward} {camPitch} {camYaw}");
+
             SwapBuffers();
             base.OnRenderFrame(e);
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
+            if (!Focused) // check to see if the window is focused
+            {
+                return;
+            }
+
             KeyboardState input = Keyboard.GetState();
 
             if (input.IsKeyDown(Key.Escape))
@@ -300,7 +332,84 @@ void main()
                 Exit();
             }
 
+            if (input.IsKeyDown(Key.W))
+            {
+                position += forward * speed; //Forward 
+            }
+
+            if (input.IsKeyDown(Key.S))
+            {
+                position -= forward * speed; //Backwards
+            }
+
+            if (input.IsKeyDown(Key.A))
+            {
+                position -= Vector3.Normalize(Vector3.Cross(forward, up)) * speed; //Left
+            }
+
+            if (input.IsKeyDown(Key.D))
+            {
+                position += Vector3.Normalize(Vector3.Cross(forward, up)) * speed; //Right
+            }
+
+            if (input.IsKeyDown(Key.Space))
+            {
+                position += up * speed; //Up 
+            }
+
+            if (input.IsKeyDown(Key.LShift))
+            {
+                position -= up * speed; //Down
+            }
+
+            if (input.IsKeyDown(Key.Q))
+            {
+                speed *= 1.05f;
+            }
+
+            if (input.IsKeyDown(Key.E))
+            {
+                speed *= 0.95f;
+            }
+
+
+            camYaw += totalMouseDelta.X * camSensitivity;
+            //camPitch -= deltaY * camSensitivity;
+            if (camPitch > 89.0f)
+            {
+                camPitch = 89.0f;
+            }
+            else if (camPitch < -89.0f)
+            {
+                camPitch = -89.0f;
+            }
+            else
+            {
+                camPitch -= totalMouseDelta.Y * camSensitivity;
+            }
+
+            ignoreNextMouseMove = true;
+            Mouse.SetPosition(X + Width / 2f, Y + Height / 2f);
+            totalMouseDelta = new Vector2(0);
+
+            forward.X = (float)Math.Cos(MathHelper.DegreesToRadians(camPitch)) * (float)Math.Cos(MathHelper.DegreesToRadians(camYaw));
+            forward.Y = (float)Math.Sin(MathHelper.DegreesToRadians(camPitch));
+            forward.Z = (float)Math.Cos(MathHelper.DegreesToRadians(camPitch)) * (float)Math.Sin(MathHelper.DegreesToRadians(camYaw));
+            forward = Vector3.Normalize(forward);
+
             base.OnUpdateFrame(e);
+        }
+
+        bool ignoreNextMouseMove = false;
+
+        protected override void OnMouseMove(MouseMoveEventArgs e)
+        {
+            if(!ignoreNextMouseMove)
+                totalMouseDelta += new Vector2(e.XDelta, e.YDelta);
+
+            ignoreNextMouseMove = false;
+
+            base.OnMouseMove(e);
         }
 
         protected override void OnResize(EventArgs e)
