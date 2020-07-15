@@ -1,3 +1,12 @@
+UPDATE: Below is the old readme, however I've recently been doing a bunch more work on reverse engineering file formats.
+Haven't had time to update the readme fully but basically this program can now also extract textures & fonts, and display
+models in some Paradigm games. Not sure what works exactly on what as I've been focusing on Beetle Adventure Racing.
+If you wanna dump the filesystem, you use the args `dump-filesytem <path to rom>` now, instead of just the rom name. You can
+also do `dump-converted-images`, `dump-converted-fonts`, `show-models`, and `show-tracks`. Like I said, those extra commands
+only work for some games (also the code for them is kind of messy and hacky, sorry about that). But filesystem extraction still
+works for all games.
+
+
 # Paradigm File Extractor
 
 A program for extracting the files from any of Paradigm Entertainment's Nintendo 64 games. It should be able to extract the files from all of their games in all regions, i.e.
