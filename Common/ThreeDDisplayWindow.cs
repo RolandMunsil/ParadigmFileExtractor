@@ -185,8 +185,8 @@ void main()
             // Set clear color
             GL.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             GL.Enable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            //GL.Enable(EnableCap.Blend);
+            //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             vertexBufferObjectHandle = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferObjectHandle);
@@ -205,11 +205,11 @@ void main()
             DefineVertexAttribute(textureShader, "inColor", 4, 6);
             DefineVertexAttribute(textureShader, "inTexCoord", 2, 10);
 
-            textureShader.Use();
-            DefineVertexAttribute(textureShader, "position", 3, 0);
-            DefineVertexAttribute(textureShader, "inNormal", 3, 3);
-            DefineVertexAttribute(textureShader, "inColor", 4, 6);
-            DefineVertexAttribute(textureShader, "inTexCoord", 2, 10);
+            basicShader.Use();
+            DefineVertexAttribute(basicShader, "position", 3, 0);
+            DefineVertexAttribute(basicShader, "inNormal", 3, 3);
+            DefineVertexAttribute(basicShader, "inColor", 4, 6);
+            DefineVertexAttribute(basicShader, "inTexCoord", 2, 10);
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBufferObjectHandle);
 

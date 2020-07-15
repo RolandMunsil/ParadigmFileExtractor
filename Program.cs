@@ -10,6 +10,8 @@ using ParadigmFileExtractor.UVBT;
 using ParadigmFileExtractor.UVMD;
 using ParadigmFileExtractor.Common;
 using ParadigmFileExtractor.UVFT;
+using ParadigmFileExtractor.UVTR;
+using ParadigmFileExtractor.UVCT;
 
 #nullable enable
 namespace ParadigmFileExtractor
@@ -31,14 +33,17 @@ namespace ParadigmFileExtractor
                     FilesystemExtractor.ExtractToFolder(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "dump-converted-images":
-                    UVTXConverter.DumpTextures(File.ReadAllBytes(romPath), outputDir);
                     UVBTConverter.DumpBlits(File.ReadAllBytes(romPath), outputDir);
+                    UVTXConverter.DumpTextures(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "dump-converted-fonts":
                     UVFTConverter.DumpFonts(File.ReadAllBytes(romPath), outputDir);
                     break;
                 case "show-models":
                     UVMDDisplayer.DisplayModels(File.ReadAllBytes(romPath));
+                    break;
+                case "show-tracks":
+                    UVTRParser.ParseUVTRs(File.ReadAllBytes(romPath));
                     break;
 
             }
