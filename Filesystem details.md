@@ -19,7 +19,7 @@ Before I explain the file table, just a note about how the files themselves are 
 
 The file's bytes are on the left (with a space after every fourth byte), and on the right is those bytes interpreted as a string. You can see that the first four bytes are "FORM", and the next four are `0x8BC0`, which means this file will be `0x8BC0` bytes long. Then comes the magic word, which in this case is "MODU", so this file is a `MODU` file.
 
-Also, in the racing games, nearly all file types will start with "UV" - I assume "UV" is the term for their file system, or engine, or something like that, since the "UV" part is also present in the names of the bits of code that actually load the files.
+Also, in the racing games, nearly all file types will start with "UV" - almost certainly because their in-house 3D development tool was called "Vega UltraVision".
 
 ### Racing game format
 The file table itself also has a file header - it starts with the string "FORM", followed by the length of the file table. After that is "UVFT", the file table's magic word. I assume the "FT" stands for File Table. 
