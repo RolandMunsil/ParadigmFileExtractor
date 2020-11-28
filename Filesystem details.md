@@ -38,7 +38,7 @@ Finally, there is one additional hiccup you need to know about. Sometimes entrie
 
 ![](https://github.com/RolandMunsil/ParadigmFileExtractor/blob/master/Documentation%20Images/ffffffffs-in-file-table.png)
 
-As far as I can tell they don't represent anything important and can be safely ignored - I've checked and you wont end up skipping any hidden files or anything. I don't really have any solid guesses on why these are there - I have one theory but I need to investigate more before I feel confident in stating it.
+These are only important if you're locating files by index into the table. When the game loads a file, it does so using a file type and index - so e.g. `LoadFile("UVTX", 10)` would load the file in the UVTX section at index 10, and those `0xFFFFFFFF` entries don't get skipped over or anything. I assume that these were files that existed at some point but were removed, and updating all the files that reference them would have been a pain? Or something along those lines. Regardless, they are just dummy values and do not represent data stored elsewhere - all you need to know is don't skip them if you're working with indices into the file table.
 
 ### Flight game format
 The flight game file tables are in an almost completely different format. Firstly, the file table is actually compressed. All of the Paradigm games have compressed files, and they have a standard format for them, which the file table follows. I won't explain it here because it's explained in the next section. Instead of being a "UVFT" file, it's a "UVRM" file.
